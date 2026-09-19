@@ -173,6 +173,8 @@ function clearApplicationData(btn) {
         localStorage.removeItem(STORAGE_KEYS.history);
         localStorage.removeItem(STORAGE_KEYS.prompts);
         localStorage.removeItem('soundhunt_bpm_key_cache');
+        localStorage.removeItem('soundhunt_bpm_key_cache_v2');
+        localStorage.removeItem('soundhunt_bpm_key_cache_v3');
         localStorage.removeItem('soundhunt_download_stash');
         localStorage.removeItem('soundhunt_stash');
         localStorage.removeItem('soundhunt_discovery_chip');

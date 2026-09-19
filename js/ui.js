@@ -88,12 +88,27 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Global keyboard shortcuts
     document.addEventListener('keydown', (e) => {
+        const extModal = document.getElementById('external-link-modal');
+        if (extModal && !extModal.classList.contains('hidden')) {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                if (typeof closeExternalLinkModal === 'function') closeExternalLinkModal();
+                return;
+            }
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (typeof confirmExternalLinkAction === 'function') confirmExternalLinkAction();
+                return;
+            }
+        }
+
         if (e.key === 'Escape') {
             closeSettings();
             closeStats();
             if (typeof closeDigDeeperModal === 'function') closeDigDeeperModal();
             if (typeof closeStashDrawer === 'function') closeStashDrawer();
             if (typeof exitAllSelectionModes === 'function') exitAllSelectionModes();
+            if (typeof closeExternalLinkModal === 'function') closeExternalLinkModal();
         }
         if (e.ctrlKey && e.key === 'k') { e.preventDefault(); document.getElementById('ai-vibe').focus(); }
     });

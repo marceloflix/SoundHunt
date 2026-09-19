@@ -280,6 +280,86 @@ button:hover:not(:disabled) {
     z-index: 10;
 }
 
+/* ── External Link Confirmation Modal Themes ── */
+#external-link-box {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#external-link-box.theme-youtube {
+    border-color: #ff4444;
+    box-shadow: 0 0 25px rgba(255, 68, 68, 0.25);
+}
+#external-link-box.theme-youtube #external-link-header {
+    background-image: linear-gradient(to bottom, #330000, #1a0000);
+    border-bottom-color: #550000;
+}
+#external-link-box.theme-youtube #external-link-confirm-btn {
+    background-color: #2a0000;
+    border: 1px solid #ff4444;
+    color: #ff4444;
+    box-shadow: 0 0 10px rgba(255, 68, 68, 0.3);
+}
+#external-link-box.theme-youtube #external-link-confirm-btn:hover {
+    background-color: #440000;
+    box-shadow: 0 0 15px rgba(255, 68, 68, 0.5);
+}
+
+#external-link-box.theme-spotify {
+    border-color: #1db954;
+    box-shadow: 0 0 25px rgba(29, 185, 84, 0.25);
+}
+#external-link-box.theme-spotify #external-link-header {
+    background-image: linear-gradient(to bottom, #003311, #001a08);
+    border-bottom-color: #00551a;
+}
+#external-link-box.theme-spotify #external-link-confirm-btn {
+    background-color: #00260e;
+    border: 1px solid #1db954;
+    color: #1db954;
+    box-shadow: 0 0 10px rgba(29, 185, 84, 0.3);
+}
+#external-link-box.theme-spotify #external-link-confirm-btn:hover {
+    background-color: #003d17;
+    box-shadow: 0 0 15px rgba(29, 185, 84, 0.5);
+}
+
+#external-link-box.theme-monochrome {
+    border-color: #bb86fc;
+    box-shadow: 0 0 25px rgba(187, 134, 252, 0.25);
+}
+#external-link-box.theme-monochrome #external-link-header {
+    background-image: linear-gradient(to bottom, #2a0055, #14002a);
+    border-bottom-color: #440088;
+}
+#external-link-box.theme-monochrome #external-link-confirm-btn {
+    background-color: #1a0033;
+    border: 1px solid #bb86fc;
+    color: #bb86fc;
+    box-shadow: 0 0 10px rgba(187, 134, 252, 0.3);
+}
+#external-link-box.theme-monochrome #external-link-confirm-btn:hover {
+    background-color: #2b0054;
+    box-shadow: 0 0 15px rgba(187, 134, 252, 0.5);
+}
+
+@media (max-width: 480px) {
+    #external-link-box {
+        max-width: calc(100vw - 24px) !important;
+        margin: auto;
+    }
+    #external-link-box .modal-footer {
+        padding: 10px 12px;
+        gap: 8px;
+    }
+    #external-link-box .modal-footer button {
+        flex: 1;
+        justify-content: center;
+        padding-left: 8px;
+        padding-right: 8px;
+        font-size: 11px;
+    }
+}
+
 /* Custom dark scrollbar for modal and lists */
 .custom-scrollbar::-webkit-scrollbar,
 .modal-body-scrollable::-webkit-scrollbar {
