@@ -1,0 +1,609 @@
+/* ==========================================================================
+   Controls kit: lamps, buttons, knobs, rockers, toggles, meters, displays
+   ========================================================================== */
+
+/* --------------------------------------------------------------- lamps */
+.lamp {
+    --lamp: var(--amber);
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex: none;
+    background: radial-gradient(circle at 35% 30%, #4a4036 0%, #1e1a16 60%, #0c0a08 100%);
+    box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.08);
+    transition: background var(--t-med), box-shadow var(--t-med);
+}
+.lamp.is-on {
+    background: radial-gradient(circle at 38% 32%, #fff 0%, var(--lamp) 38%, color-mix(in srgb, var(--lamp) 60%, #000) 100%);
+    box-shadow: 0 0 6px var(--lamp), 0 0 14px color-mix(in srgb, var(--lamp) 55%, transparent), inset 0 0 1px rgba(255,255,255,0.6);
+}
+.lamp.is-blink { animation: lampBlink 0.9s steps(2, jump-none) infinite; }
+.lamp-red { --lamp: var(--lamp-red); }
+.lamp-green { --lamp: var(--lamp-green); }
+.lamp-blue { --lamp: var(--blue); }
+.lamp-yellow { --lamp: #ffd84a; }
+
+/* Lamp inside a rendered chrome bezel */
+.lamp-bezel {
+    position: relative;
+    width: 22px; height: 22px;
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+}
+.lamp-bezel::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: var(--img-bezel) center / contain no-repeat;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9));
+    pointer-events: none;
+}
+.lamp-bezel .lamp { width: 13px; height: 13px; }
+
+@keyframes lampBlink { 50% { filter: brightness(0.35); } }
+
+/* --------------------------------------------------------------- push buttons */
+/* Black function button with silver legend (black-face receiver style). */
+.pb {
+    --pb-h: 34px;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: var(--pb-h);
+    padding: 0 14px;
+    border-radius: var(--r-sm);
+    font-family: var(--font-label);
+    font-size: 0.56rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--label-hi);
+    background: linear-gradient(180deg, #34363b 0%, #222327 45%, #18191c 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.5),
+        0 0 0 1px #050505,
+        0 3px 0 #050505,
+        0 5px 8px rgba(0, 0, 0, 0.55);
+    transition: transform var(--t-fast), box-shadow var(--t-fast), color var(--t-fast);
+    user-select: none;
+    white-space: nowrap;
+}
+.pb:hover { color: var(--alu-hi); }
+.pb:active, .pb.is-pressed {
+    transform: translateY(2px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 2px 6px rgba(0, 0, 0, 0.6),
+        0 0 0 1px #050505,
+        0 1px 0 #050505,
+        0 2px 3px rgba(0, 0, 0, 0.5);
+}
+.pb.is-active { color: var(--amber-hot); text-shadow: 0 0 8px var(--amber-glow); }
+.pb[disabled], .pb.is-disabled { opacity: 0.45; pointer-events: none; }
+.pb i { font-size: 0.85rem; }
+.pb-sm { --pb-h: 28px; padding: 0 10px; font-size: 0.5rem; }
+.pb-icon { width: var(--pb-h); padding: 0; }
+.pb-danger:hover, .pb-danger.is-armed { color: #ffb0a6; text-shadow: 0 0 8px rgba(255, 77, 58, 0.6); }
+
+/* Aluminium cap button (HUNT, APPLY). */
+.pb-alu {
+    color: #2a2b2e;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+    background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0 1px, rgba(0,0,0,0.03) 1px 3px),
+        linear-gradient(180deg, #f1f2f4 0%, #c9ccd1 48%, #a9adb3 100%);
+    box-shadow:
+        inset 0 1px 0 #fff,
+        inset 0 -2px 0 rgba(0, 0, 0, 0.18),
+        0 0 0 1px #2b2c2f,
+        0 3px 0 #1a1b1d,
+        0 6px 10px rgba(0, 0, 0, 0.55);
+}
+.pb-alu:hover { color: #000; }
+.pb-alu:active, .pb-alu.is-pressed {
+    box-shadow:
+        inset 0 2px 5px rgba(0, 0, 0, 0.25),
+        0 0 0 1px #2b2c2f,
+        0 1px 0 #1a1b1d,
+        0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Small square key used in track rows. */
+.key {
+    width: 28px; height: 28px;
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    border-radius: var(--r-sm);
+    color: #9a9da3;
+    font-size: 0.72rem;
+    background: var(--img-cap-sq) center / 100% 100% no-repeat;
+    filter: drop-shadow(0 2px 1px rgba(0, 0, 0, 0.6));
+    transition: transform 70ms ease-out, color var(--t-fast), filter 70ms ease-out;
+}
+.key:hover { color: var(--amber-hot); }
+.key:active { transform: translateY(1px) scale(0.96); filter: drop-shadow(0 1px 0 rgba(0,0,0,0.6)) brightness(0.88); }
+.key.is-active { color: var(--amber-hot); text-shadow: 0 0 8px var(--amber-glow); }
+.key-youtube:hover { color: var(--youtube); }
+.key-spotify:hover { color: var(--spotify); }
+.key-mono:hover { color: var(--monochrome); }
+.key-dig:hover { color: var(--blue); }
+.key svg { width: 13px; height: 13px; }
+
+/* --------------------------------------------------------------- knobs */
+/* Rendered knob photo stays still (real lighting); only the indicator rotates. */
+.knob-wrap {
+    --size: 78px;
+    --radius: calc(var(--size) / 2 + 22px);
+    position: relative;
+    width: calc(var(--size) + 104px);
+    height: calc(var(--size) + 46px);
+    display: grid;
+    place-items: center;
+    flex: none;
+}
+.knob {
+    --angle: 0deg;
+    position: relative;
+    width: var(--size); height: var(--size);
+    border-radius: 50%;
+    background: var(--img-knob) center / contain no-repeat;
+    filter: drop-shadow(0 7px 7px rgba(0, 0, 0, 0.65)) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.6));
+    cursor: pointer;
+    touch-action: none;
+}
+.knob::after {
+    /* indicator groove */
+    content: '';
+    position: absolute;
+    left: 50%; top: 9%;
+    width: 3px; height: 26%;
+    margin-left: -1.5px;
+    border-radius: 2px;
+    background: linear-gradient(180deg, #111 0%, #2a2a2a 100%);
+    box-shadow: 1px 0 0 rgba(255, 255, 255, 0.45), -1px 0 0 rgba(0, 0, 0, 0.25);
+    transform-origin: 50% calc(var(--size) * 0.41);
+    transform: rotate(var(--angle));
+    transition: transform var(--t-med) var(--ease-detent);
+}
+.knob:focus-visible { outline-offset: 4px; border-radius: 50%; }
+.knob-wrap .knob-mark {
+    /* label around the knob, placed by --a */
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%) rotate(var(--a)) translateY(calc(var(--radius) * -1)) rotate(calc(var(--a) * -1));
+    font-family: var(--font-label);
+    font-size: 0.52rem;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+    color: var(--label);
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color var(--t-med), text-shadow var(--t-med);
+    padding: 2px;
+}
+.knob-wrap .knob-mark.is-active { color: var(--amber-hot); text-shadow: 0 0 8px var(--amber-glow); }
+.knob-wrap .knob-title {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    text-align: center;
+}
+.knob-wrap .knob-ticks { position: absolute; inset: 0; pointer-events: none; }
+/* printed dot ring (built by initKnob): small dots between detents, larger at each detent */
+.knob-dot {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 3px; height: 3px;
+    margin: -1.5px 0 0 -1.5px;
+    border-radius: 50%;
+    background: rgba(201, 204, 209, 0.5);
+    transform: rotate(var(--a)) translateY(calc(var(--size) / -2 - 9px));
+}
+.knob-dot.is-major { width: 4px; height: 4px; margin: -2px 0 0 -2px; background: var(--label-hi); }
+
+/* --------------------------------------------------------------- printed group bracket */
+/* Silk-screened line with end ticks that groups related controls (Akai/Sansui style). */
+.group { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.group-row { display: flex; gap: 22px; align-items: flex-start; justify-content: center; }
+.bracket { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.bracket::before, .bracket::after {
+    content: '';
+    flex: 1;
+    min-width: 12px;
+    height: 6px;
+    margin-top: 7px;
+    border-top: 1px solid rgba(160, 163, 169, 0.5);
+}
+.bracket::before { border-left: 1px solid rgba(160, 163, 169, 0.5); }
+.bracket::after { border-right: 1px solid rgba(160, 163, 169, 0.5); }
+
+/* --------------------------------------------------------------- rocker / segmented */
+.rocker {
+    display: inline-flex;
+    padding: 3px;
+    gap: 3px;
+    border-radius: var(--r-sm);
+    background: #070708;
+    box-shadow: var(--well);
+}
+.rocker > button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    min-height: 26px;
+    border-radius: 2px;
+    font-family: var(--font-label);
+    font-size: 0.48rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--label);
+    background: linear-gradient(180deg, #2c2e32, #1b1c1f);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 0 #000;
+    transition: transform var(--t-fast), color var(--t-fast);
+}
+.rocker > button .lamp { width: 6px; height: 6px; }
+.rocker > button.is-active {
+    color: var(--amber-hot);
+    transform: translateY(1px);
+    background: linear-gradient(180deg, #17181a, #222428);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.7);
+    text-shadow: 0 0 6px var(--amber-glow);
+}
+
+/* --------------------------------------------------------------- bat toggle */
+.toggle {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    user-select: none;
+}
+.toggle input { position: absolute; opacity: 0; pointer-events: none; }
+.toggle-body {
+    position: relative;
+    width: 22px; height: 34px;
+    border-radius: 11px;
+    background: radial-gradient(circle at 50% 50%, #2a2b2e 0 6px, #0a0a0b 7px 100%);
+    box-shadow: var(--well);
+}
+.toggle-body::before {
+    /* chrome nut */
+    content: '';
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 14px; height: 14px;
+    margin: -7px 0 0 -7px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #f3f4f6, #8f939a 60%, #4a4d52);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+.toggle-body::after {
+    /* bat lever */
+    content: '';
+    position: absolute;
+    left: 50%;
+    width: 8px; height: 17px;
+    margin-left: -4px;
+    top: 0;
+    border-radius: 4px 4px 3px 3px;
+    background: linear-gradient(90deg, #8d9197, #f4f5f7 45%, #a3a7ad 70%, #6b6f75);
+    box-shadow: 0 2px 2px rgba(0,0,0,0.7);
+    transition: top var(--t-med) var(--ease-detent), transform var(--t-med);
+}
+.toggle input:checked + .toggle-body::after { top: 17px; border-radius: 3px 3px 4px 4px; }
+.toggle input:focus-visible + .toggle-body { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+/* --------------------------------------------------------------- displays */
+.readout {
+    font-family: var(--font-display);
+    color: var(--amber);
+    text-shadow: 0 0 6px var(--amber-glow);
+    letter-spacing: 0.06em;
+}
+.vfd {
+    font-family: var(--font-display);
+    color: var(--vfd);
+    text-shadow: 0 0 6px var(--vfd-glow), 0 0 14px rgba(110, 240, 210, 0.2);
+    letter-spacing: 0.08em;
+}
+.vfd-glass {
+    background:
+        repeating-linear-gradient(0deg, rgba(0,0,0,0.25) 0 1px, transparent 1px 3px),
+        radial-gradient(120% 140% at 50% 0%, #0f2420 0%, #06100e 60%, #030706 100%);
+    border-radius: var(--r-sm);
+    box-shadow: var(--well);
+}
+
+/* Lit tag (BPM / key) */
+.tag {
+    --tag: var(--amber);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 2px;
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    line-height: 1;
+    color: var(--tag);
+    background: color-mix(in srgb, var(--tag) 10%, #0a0a0a);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tag) 45%, transparent), 0 0 8px color-mix(in srgb, var(--tag) 22%, transparent);
+    text-shadow: 0 0 6px color-mix(in srgb, var(--tag) 70%, transparent);
+    white-space: nowrap;
+}
+.tag-muted { --tag: #6d6a63; box-shadow: inset 0 0 0 1px #2a2926; text-shadow: none; }
+.tag-loading { animation: tagPulse 1.1s ease-in-out infinite; }
+@keyframes tagPulse { 50% { opacity: 0.35; } }
+
+/* Text field in a recessed window */
+.field {
+    width: 100%;
+    min-height: 34px;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: #070708;
+    box-shadow: var(--well);
+    color: var(--amber);
+    font-family: var(--font-display);
+    font-size: 0.9rem;
+    letter-spacing: 0.04em;
+    text-shadow: 0 0 6px var(--amber-glow);
+    outline: none;
+}
+.field::placeholder { color: #5b4a33; text-shadow: none; }
+.field:focus { box-shadow: var(--well), 0 0 0 1px rgba(255, 179, 71, 0.4); }
+textarea.field { resize: vertical; min-height: 64px; line-height: 1.4; }
+
+/* --------------------------------------------------------------- rendered caps */
+/* A labelled control: silk legend above its control. Two fixed rows so that in any
+   row of .fn items every legend shares one baseline and every control one centre line. */
+.fn {
+    --ctl-h: 40px;
+    display: inline-grid;
+    grid-template-rows: 14px var(--ctl-h);
+    row-gap: 6px;
+    justify-items: center;
+    align-items: center;
+    flex: none;
+    min-width: 56px;
+}
+.fn-legend {
+    display: flex;
+    align-items: center;
+    height: 14px;
+    gap: 5px;
+    font-family: var(--font-label);
+    font-size: 0.52rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--label-hi);
+    white-space: nowrap;
+}
+.fn-legend .lamp { width: 6px; height: 6px; }
+.cap {
+    --w: 54px;
+    --h: 34px;
+    position: relative;
+    width: var(--w);
+    height: var(--h);
+    display: grid;
+    place-items: center;
+    background: var(--img-cap-wide) center / 100% 100% no-repeat;
+    color: #9a9da3;
+    font-size: 0.8rem;
+    transition: transform 70ms ease-out, filter 70ms ease-out;
+    filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.55));
+}
+.cap-sq { --w: 36px; --h: 36px; background-image: var(--img-cap-sq); }
+.cap-sm { --w: 44px; --h: 28px; font-size: 0.7rem; }
+.cap i, .cap svg { opacity: 0.85; text-shadow: 0 -1px 0 rgba(0,0,0,0.8), 0 1px 0 rgba(255,255,255,0.1); }
+.cap:hover { color: #d9dbdf; }
+.cap::after {
+    /* shadow the panel opening casts onto the cap once it sinks below the faceplate */
+    content: '';
+    position: absolute; inset: 1px;
+    border-radius: 5px;
+    box-shadow: inset 0 0 0 0 rgba(0,0,0,0);
+    transition: box-shadow 90ms ease-out;
+    pointer-events: none;
+}
+.cap:active, .cap.is-pressed {
+    transform: translateY(2px) scale(0.965);
+    filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0)) brightness(0.86);
+}
+/* Latched (stays down): sunk into the panel. No drop shadow, darker, the opening's
+   rim shadows the top edge, and a dark gap shows around it. */
+.cap.is-latched {
+    transform: translateY(3px) scale(0.93);
+    filter: brightness(0.74) contrast(1.05);
+}
+.cap.is-latched::after {
+    box-shadow:
+        inset 0 5px 6px -1px rgba(0, 0, 0, 0.75),
+        inset 0 0 0 1px rgba(0, 0, 0, 0.55),
+        0 0 0 3px rgba(0, 0, 0, 0.55);
+}
+.cap.is-latched i, .cap.is-latched .cap-num { color: var(--amber-hot); text-shadow: 0 0 7px var(--amber-glow); opacity: 1; filter: brightness(1.35); }
+.cap[disabled] { opacity: 0.4; pointer-events: none; }
+.cap .cap-text {
+    font-family: var(--font-label);
+    font-size: 0.46rem;
+    letter-spacing: 0.12em;
+    color: #a6a9ae;
+    text-transform: uppercase;
+}
+
+/* Destructive caps (RESET / EJECT): red-filled legend glyph, red when armed. */
+.cap-danger i { color: #c8695c; opacity: 1; }
+.cap-danger.is-armed i { color: #ff8a7a; text-shadow: 0 0 6px rgba(255, 77, 58, 0.8); }
+
+/* LED 7-segment window */
+.seg {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 6px;
+    min-width: 34px;
+    border-radius: 2px;
+    background: #0b0302;
+    box-shadow: var(--well);
+    font-family: var(--font-seg);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: #ff4b2b;
+    text-shadow: 0 0 6px rgba(255, 75, 43, 0.75);
+    position: relative;
+}
+.seg::before {
+    /* unlit segments ghost */
+    content: attr(data-ghost);
+    position: absolute;
+    right: 6px;
+    color: rgba(255, 75, 43, 0.08);
+    text-shadow: none;
+}
+
+/* --------------------------------------------------------------- rendered bat toggle */
+.bat {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+    flex: none;
+}
+.bat input { position: absolute; opacity: 0; pointer-events: none; }
+.bat-legend {
+    font-family: var(--font-label);
+    font-size: 0.48rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--label);
+    transition: color var(--t-med), text-shadow var(--t-med);
+}
+.bat-lever {
+    /* render canvas is 160x210; the lever's short cast shadow shows its position */
+    width: 44px;
+    height: 58px;
+    margin: -2px 0;
+    background: var(--img-toggle-up) center / contain no-repeat;
+}
+.bat input:checked ~ .bat-lever { background-image: var(--img-toggle-down); }
+.bat input:not(:checked) ~ .bat-legend.is-up,
+.bat input:checked ~ .bat-legend.is-down { color: #f0c27a; text-shadow: 0 0 5px rgba(255, 154, 31, 0.35); }
+.bat input:focus-visible ~ .bat-lever { outline: 2px solid var(--amber); outline-offset: 2px; border-radius: 50%; }
+.bat-title { margin-bottom: 3px; }
+
+/* --------------------------------------------------------------- small backlit LCD */
+/* A little display module standing proud of the faceplate: black bezel with a lit
+   chamfer, recessed amber screen behind a glass cover. Long text scrolls on hover. */
+.lcd {
+    position: relative;
+    display: block;
+    max-width: 100%;
+    padding: 3px;
+    border-radius: 5px;
+    background: linear-gradient(180deg, #3a3c41 0%, #1c1d20 30%, #0f1012 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.18),   /* top chamfer catches light */
+        inset 0 -1px 0 rgba(0, 0, 0, 0.8),
+        0 0 0 1px #050505,
+        0 3px 4px rgba(0, 0, 0, 0.6),             /* stands off the panel */
+        0 1px 1px rgba(0, 0, 0, 0.7);
+}
+.lcd-glass {
+    position: relative;
+    display: block;
+    height: 24px;
+    padding: 0 8px;
+    overflow: hidden;
+    border-radius: 2px;
+    background:
+        repeating-linear-gradient(0deg, rgba(0,0,0,0.22) 0 1px, transparent 1px 3px),
+        radial-gradient(120% 160% at 30% 0%, #221709 0%, #0c0905 60%, #070503 100%);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.9), inset 0 0 0 1px #000;
+}
+.lcd-glass::after {
+    /* glass cover: curved top reflection + bright edge where the glass meets the bezel */
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 2px;
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.05) 42%, rgba(255,255,255,0) 43%),
+        linear-gradient(100deg, transparent 55%, rgba(255,255,255,0.05) 62%, transparent 70%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    pointer-events: none;
+}
+.lcd-text {
+    display: inline-block;
+    white-space: nowrap;
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 0.8rem;
+    line-height: 24px;
+    letter-spacing: 0.03em;
+    color: var(--amber);
+    text-shadow: 0 0 6px var(--amber-glow);
+}
+/* overflow fades into the dark screen at both edges; constant, so hovering (which starts
+   the scroll) changes nothing but the text position */
+.lcd.is-overflow .lcd-glass::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, #0b0805, transparent 7%, transparent 86%, #0b0805);
+    z-index: 1;
+    pointer-events: none;
+}
+.lcd.is-scrolling .lcd-text { animation: lcdScroll var(--scroll-dur, 6s) linear infinite; }
+@keyframes lcdScroll {
+    0%, 10% { transform: translateX(0); }
+    90%, 100% { transform: translateX(calc(var(--scroll-dist, 0px) * -1)); }
+}
+.lcd-empty .lcd-text { color: #4a3820; text-shadow: none; }
+
+/* --------------------------------------------------------------- LED ladder */
+.leds { display: inline-flex; gap: 4px; align-items: center; }
+.led {
+    --c: var(--lamp-green);
+    width: 9px; height: 5px;
+    border-radius: 1px;
+    background: color-mix(in srgb, var(--c) 14%, #0a0a0a);
+    box-shadow: inset 0 0 0 0.5px rgba(0,0,0,0.8), 0 1px 0 rgba(255,255,255,0.05);
+}
+.led.is-on {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--c) 60%, #fff), var(--c));
+    box-shadow: 0 0 5px var(--c), 0 0 10px color-mix(in srgb, var(--c) 50%, transparent);
+}
+.led-amber { --c: var(--amber); }
+.led-red { --c: var(--lamp-red); }
+
+/* --------------------------------------------------------------- analog meter */
+.meter { position: relative; flex: none; }
+.meter svg { width: 100%; height: auto; }
+.meter .meter-needle {
+    transform-box: view-box;
+    transform-origin: 60px 92px; /* pivot, see PIVOT in js/controls.js */
+    transform: rotate(var(--deflect, -42deg));
+    transition: transform 140ms cubic-bezier(0.25, 0.9, 0.35, 1.1);
+}
+.meter-frame {
+    padding: 5px;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #f1f2f4 0%, #a3a7ad 40%, #4b4e53 58%, #c3c6cb 100%);
+    box-shadow: 0 0 0 1px #050505, 0 5px 10px rgba(0,0,0,0.6);
+}
+.meter-face { position: relative; border-radius: 3px; overflow: hidden; background: #000; }
+.meter-face::after {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 3px;
+    box-shadow: inset 0 3px 7px rgba(0,0,0,0.65), inset 0 0 0 1px rgba(0,0,0,0.7);
+    pointer-events: none;
+}

@@ -1,0 +1,234 @@
+/* ==========================================================================
+   Base: reset, room, chassis, rack units
+   ========================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+
+body {
+    margin: 0;
+    min-height: 100dvh;
+    font-family: var(--font-ui);
+    font-size: 1rem;
+    line-height: 1.35;
+    color: var(--text);
+    /* The room: a dark shelf with a faint warm spill from the receiver lamps. */
+    background:
+        radial-gradient(1200px 520px at 50% -120px, rgba(255, 154, 31, 0.10), transparent 70%),
+        radial-gradient(900px 600px at 50% 110%, rgba(90, 184, 255, 0.05), transparent 70%),
+        #0b0b0c;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    /* Hardware labels aren't text to copy; content that is gets .selectable. */
+    -webkit-user-select: none;
+            user-select: none;
+}
+input, textarea, .selectable { -webkit-user-select: text; user-select: text; }
+img { -webkit-user-drag: none; }
+
+body:has(#audio-player-bar.active) { padding-bottom: 104px; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; }
+a { color: inherit; text-decoration: none; }
+img, svg { display: block; }
+
+.hidden { display: none !important; }
+.sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+    border-radius: var(--r-sm);
+}
+
+::selection { background: rgba(255, 179, 71, 0.35); color: #fff; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #0b0b0c; }
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, #3a3c40, #2a2c30);
+    border: 2px solid #0b0b0c;
+    border-radius: 6px;
+}
+
+/* --------------------------------------------------------------- typography */
+.engraved {
+    font-family: var(--font-label);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--label);
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+.engraved-sm { font-size: 0.56rem; }
+.engraved-md { font-size: 0.62rem; }
+
+.silk {
+    font-family: var(--font-label);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--silk);
+    font-size: 0.55rem;
+}
+
+/* --------------------------------------------------------------- chassis */
+.chassis {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px 20px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+/* A component with walnut cheeks on both sides (the receiver). */
+.cabinet {
+    position: relative;
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) 30px;
+    border-radius: var(--r-lg);
+    box-shadow: 0 24px 50px rgba(0, 0, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+.cabinet-cheek {
+    background:
+        linear-gradient(90deg, rgba(0,0,0,0.45), rgba(255,255,255,0.06) 40%, rgba(0,0,0,0.25)),
+        var(--tex-walnut) center / cover,
+        var(--walnut-1);
+    box-shadow: inset 0 1px 0 rgba(255, 220, 180, 0.12), inset 0 -2px 4px rgba(0, 0, 0, 0.5);
+}
+.cabinet-cheek:first-child { border-radius: var(--r-lg) 0 0 var(--r-lg); }
+.cabinet-cheek:last-child { border-radius: 0 var(--r-lg) var(--r-lg) 0; }
+
+/* Brushed faceplate */
+.faceplate {
+    position: relative;
+    background:
+        /* light falls from above: brighter top third, darker bottom edge */
+        radial-gradient(140% 70% at 50% -10%, rgba(255,255,255,0.07), transparent 60%),
+        var(--faceplate);
+    box-shadow:
+        inset 0 2px 0 rgba(255, 255, 255, 0.09),   /* top chamfer catches the light */
+        inset 0 3px 2px -1px rgba(255, 255, 255, 0.03),
+        inset 0 -3px 0 rgba(0, 0, 0, 0.55),        /* bottom chamfer in shadow */
+        inset 0 0 0 1px rgba(0, 0, 0, 0.55);
+}
+/* Four corner screws on full-size faceplates */
+.faceplate.has-screws::before {
+    content: '';
+    position: absolute;
+    inset: 7px;
+    pointer-events: none;
+    background:
+        var(--img-screw) left top / 11px 11px no-repeat,
+        var(--img-screw) right top / 11px 11px no-repeat,
+        var(--img-screw) left bottom / 11px 11px no-repeat,
+        var(--img-screw) right bottom / 11px 11px no-repeat;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8));
+}
+
+/* A rack unit: faceplate with rack ears + screws. */
+.unit {
+    position: relative;
+    background: var(--faceplate);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-unit), var(--bevel-out), inset 0 0 0 1px rgba(0, 0, 0, 0.6);
+    padding: 14px 34px;
+}
+.unit::before, .unit::after {
+    /* rack ears */
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 22px;
+    background:
+        var(--img-screw) center 12px / 12px 12px no-repeat,
+        var(--img-screw) center calc(100% - 12px) / 12px 12px no-repeat,
+        linear-gradient(90deg, rgba(0,0,0,0.35), rgba(255,255,255,0.04), rgba(0,0,0,0.35));
+    filter: drop-shadow(0 1px 0 rgba(0,0,0,0.6));
+}
+.unit::before { left: 0; border-radius: var(--r-md) 0 0 var(--r-md); border-right: 1px solid rgba(0,0,0,0.6); }
+.unit::after { right: 0; border-radius: 0 var(--r-md) var(--r-md) 0; border-left: 1px solid rgba(0,0,0,0.6); }
+
+.screw {
+    width: 12px; height: 12px;
+    background: var(--img-screw) center / contain no-repeat;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8));
+    flex: none;
+}
+
+/* Recessed glass/display well */
+.well {
+    background: var(--glass);
+    border-radius: var(--r-sm);
+    box-shadow: var(--well);
+}
+
+.footer {
+    text-align: center;
+    padding: 10px 0 0;
+}
+
+/* --------------------------------------------------------------- phone */
+@media (max-width: 640px) {
+    .chassis { padding: 10px 8px 28px; gap: 12px; }
+    .cabinet { grid-template-columns: 9px minmax(0, 1fr) 9px; border-radius: var(--r-md); }
+    .cabinet-cheek:first-child { border-radius: var(--r-md) 0 0 var(--r-md); }
+    .cabinet-cheek:last-child { border-radius: 0 var(--r-md) var(--r-md) 0; }
+    .unit { padding: 12px 12px; }
+    .unit::before, .unit::after { display: none; }
+}
+
+/* --------------------------------------------------------------- power */
+/* Everything that emits light. Off: unlit glass and dead lamps. Power-on: each part
+   warms up the way its real counterpart did (incandescent bulbs flicker and swell,
+   fluorescent/VFD displays strike and stutter, pilot lamps pop). */
+body.is-off :is(.dial, .meter-face, .program-glass, .lcd-glass, .hunt-lens, .seg, .tracks, .readout, .tag, .led.is-on, .lamp.is-on:not(.is-standby)) {
+    filter: brightness(0.09) saturate(0.25) contrast(1.15);
+    transition: filter 380ms ease-in;
+}
+body.is-off .lamp.is-on:not(.is-standby), body.is-off .led.is-on { box-shadow: none; }
+
+body.is-powering-on :is(.dial, .meter-face) { animation: bulbWarm 1.7s var(--pd, 0ms) both; }
+body.is-powering-on :is(.program-glass, .lcd-glass, .seg, .tracks, .readout, .tag) { animation: vfdStrike 1s var(--pd, 0ms) both; }
+body.is-powering-on :is(.hunt-lens, .lamp.is-on:not(.is-standby), .led.is-on) { animation: lampPop 0.7s var(--pd, 0ms) both; }
+
+@keyframes bulbWarm {
+    0%   { filter: brightness(0.09) saturate(0.25); }
+    5%   { filter: brightness(0.45) sepia(0.7) saturate(1.4); }
+    8%   { filter: brightness(0.12) sepia(0.5); }
+    15%  { filter: brightness(0.62) sepia(0.6) saturate(1.3); }
+    19%  { filter: brightness(0.28) sepia(0.5); }
+    31%  { filter: brightness(0.8) sepia(0.35); }
+    35%  { filter: brightness(0.55) sepia(0.3); }
+    58%  { filter: brightness(1.08) sepia(0.1); }
+    100% { filter: none; }
+}
+@keyframes vfdStrike {
+    0%   { filter: brightness(0.09) saturate(0.2); transform: translateX(0); }
+    9%   { filter: brightness(1.25); transform: translateX(1px); }
+    12%  { filter: brightness(0.12); transform: translateX(0); }
+    20%  { filter: brightness(0.95); }
+    24%  { filter: brightness(0.3); transform: translateX(-1px); }
+    29%  { filter: brightness(1.15); transform: translateX(0); }
+    44%  { filter: brightness(0.7); }
+    52%  { filter: brightness(1.05); }
+    100% { filter: none; }
+}
+@keyframes lampPop {
+    0%   { filter: brightness(0.09) saturate(0.2); }
+    35%  { filter: brightness(1.7) saturate(1.2); }
+    55%  { filter: brightness(0.8); }
+    100% { filter: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

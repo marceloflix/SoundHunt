@@ -1,0 +1,112 @@
+/* ==========================================================================
+   SoundHunt SH-1977 — design tokens
+   Fonts (Barlow Condensed, Michroma, Share Tech Mono) are linked in <head>.
+   ========================================================================== */
+@font-face {
+    font-family: 'DSEG7 Classic';
+    src: url('https://cdn.jsdelivr.net/npm/dseg@0.46.0/fonts/DSEG7-Classic/DSEG7Classic-Bold.woff2') format('woff2');
+    font-weight: 400;
+    font-display: swap;
+}
+
+:root {
+    color-scheme: dark;
+
+    /* Faceplate & chassis */
+    --face-1: #1b1c1e;
+    --face-2: #2a2c30;
+    --face-deep: #111214;
+    --face-edge: #08090a;
+    --rear: #141516;
+
+    /* Aluminium */
+    --alu: #b9bdc3;
+    --alu-hi: #eef0f2;
+    --alu-lo: #6f737a;
+
+    /* Walnut */
+    --walnut-1: #3a2213;
+    --walnut-2: #6b4226;
+
+    /* Lamps & displays */
+    --amber: #ffb347;
+    --amber-hot: #ffd08a;
+    --amber-glow: rgba(255, 154, 31, 0.55);
+    --amber-dim: #8a5a1c;
+    --amber-ghost: rgba(255, 179, 71, 0.16);
+    --needle: #ff5a2e;
+    --lamp-red: #ff4d3a;
+    --lamp-green: #8dff6e;
+    --blue: #5ab8ff;
+    --blue-glow: rgba(90, 184, 255, 0.5);
+    --vfd: #6ef0d2;
+    --vfd-glow: rgba(110, 240, 210, 0.45);
+    --vfd-ghost: rgba(110, 240, 210, 0.1);
+    --glass: #0a0907;
+
+    /* Brand colours for outputs */
+    --youtube: #ff4444;
+    --spotify: #1db954;
+    --monochrome: #bb86fc;
+
+    /* Text */
+    --text: #f2e6cf;
+    --text-dim: #b7ad9b;
+    --label: #a0a3a9;
+    --label-hi: #c9ccd1;
+    --silk: #e9e6df; /* rear-panel silk-screen white */
+
+    /* Type */
+    --font-label: 'Michroma', 'Eurostile', 'Arial Narrow', sans-serif;
+    --font-ui: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+    --font-display: 'Share Tech Mono', 'Courier New', monospace;
+    --font-script: 'Playfair Display', Georgia, serif; /* used italic, Marantz-style nameplate */
+
+    /* Textures (Blender renders, see assets/hifi) */
+    --tex-brushed: url('../assets/hifi/brushed.webp');
+    --tex-walnut: url('../assets/hifi/walnut.webp');
+    --img-knob: url('../assets/hifi/knob.webp');
+    --img-screw: url('../assets/hifi/screw.webp');
+    --img-bezel: url('../assets/hifi/bezel.webp');
+    --img-cap-wide: url('../assets/hifi/cap-wide.webp');
+    --img-cap-sq: url('../assets/hifi/cap-sq.webp');
+    --img-toggle-up: url('../assets/hifi/toggle-up.webp');
+    --img-toggle-down: url('../assets/hifi/toggle-down.webp');
+    --img-hunt-cap: url('../assets/hifi/hunt-cap.webp');
+    --img-hunt-bezel: url('../assets/hifi/hunt-bezel.webp');
+    --img-turntable: url('../assets/hifi/turntable.webp');
+    --img-tonearm: url('../assets/hifi/tonearm.webp');
+    --font-seg: 'DSEG7 Classic', var(--font-display);
+
+    /* Surfaces */
+    --faceplate:
+        linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 22%, rgba(0,0,0,0) 70%, rgba(0,0,0,0.25) 100%),
+        /* soft anisotropic sheen band, as brushed metal shows under a ceiling light */
+        linear-gradient(180deg, transparent 18%, rgba(255,255,255,0.028) 32%, rgba(255,255,255,0.045) 38%, rgba(255,255,255,0.02) 46%, transparent 60%),
+        var(--tex-brushed) 0 0 / 256px 256px,
+        var(--face-1);
+    --faceplate-dark:
+        linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.3)),
+        var(--tex-brushed) 0 0 / 256px 256px,
+        var(--face-deep);
+
+    /* Depth */
+    --bevel-out: inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -1px 0 rgba(0,0,0,0.6);
+    --shadow-unit: 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.55), 0 2px 4px rgba(0,0,0,0.6);
+    --well: inset 0 2px 6px rgba(0,0,0,0.85), inset 0 0 0 1px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.07);
+
+    /* Radii & motion */
+    --r-sm: 3px;
+    --r-md: 6px;
+    --r-lg: 10px;
+    --ease-detent: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --t-fast: 120ms;
+    --t-med: 260ms;
+
+    --ui-scale: 1;
+}
+
+/* Text-size setting (body classes kept from the previous UI). */
+html:has(body.text-size-small) { font-size: 15px; }
+html:has(body.text-size-normal) { font-size: 16px; }
+html:has(body.text-size-large) { font-size: 17.5px; }

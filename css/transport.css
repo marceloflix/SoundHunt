@@ -1,0 +1,218 @@
+/* ==========================================================================
+   Transport: turntable deck (bottom player)
+   The platter/vinyl render is static (its highlights must not rotate); only the
+   album-art label spins. The tonearm angle tracks preview progress.
+   ========================================================================== */
+#audio-player-bar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 40;
+    transform: translateY(115%);
+    transition: transform 420ms cubic-bezier(0.2, 0.9, 0.3, 1);
+    padding: 0 12px calc(8px + env(safe-area-inset-bottom));
+    pointer-events: none;
+}
+#audio-player-bar.active { transform: translateY(0); }
+body:has(#audio-player-bar.active) { padding-bottom: 150px; }
+
+.transport {
+    pointer-events: auto;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) 24px;
+    border-radius: var(--r-md);
+    box-shadow: 0 -8px 34px rgba(0, 0, 0, 0.75), 0 2px 6px rgba(0,0,0,0.6);
+}
+.transport .cabinet-cheek:first-child { border-radius: var(--r-md) 0 0 var(--r-md); }
+.transport .cabinet-cheek:last-child { border-radius: 0 var(--r-md) var(--r-md) 0; }
+.transport-face {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    padding: 10px 20px;
+    min-width: 0;
+}
+
+/* --------------------------------------------------------------- deck */
+.deck {
+    --u: 36px;
+    --arm: 8deg;
+    position: relative;
+    width: calc(var(--u) * 3.4);
+    height: calc(var(--u) * 2.7);
+    flex: none;
+}
+.deck-platter {
+    position: absolute;
+    left: 0; top: calc(var(--u) * 0.15);
+    width: calc(var(--u) * 2.4);
+    height: calc(var(--u) * 2.4);
+    background: var(--img-turntable) center / contain no-repeat;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.6));
+}
+.deck-strobe {
+    /* strobe dots machined into the platter rim; rotate with the platter */
+    position: absolute;
+    left: 0; top: calc(var(--u) * 0.15);
+    width: calc(var(--u) * 2.4);
+    height: calc(var(--u) * 2.4);
+    border-radius: 50%;
+    background: repeating-conic-gradient(rgba(235, 238, 242, 0.85) 0 1.6deg, rgba(20, 20, 22, 0.55) 1.6deg 4deg);
+    -webkit-mask: radial-gradient(circle, transparent 0 86%, #000 86.5% 91.5%, transparent 92%);
+            mask: radial-gradient(circle, transparent 0 86%, #000 86.5% 91.5%, transparent 92%);
+    pointer-events: none;
+    will-change: transform;
+}
+.deck-label {
+    position: absolute;
+    left: calc(var(--u) * 1.2);
+    top: calc(var(--u) * 1.35);
+    width: calc(var(--u) * 0.82);
+    height: calc(var(--u) * 0.82);
+    margin: calc(var(--u) * -0.41) 0 0 calc(var(--u) * -0.41);
+    border-radius: 50%;
+    overflow: hidden;
+    background:
+        radial-gradient(circle, transparent 0 58%, rgba(0,0,0,0.25) 59% 61%, transparent 62%),
+        conic-gradient(from 0deg, #c2421f, #e2733a, #c2421f 50%, #8f2c14, #c2421f);
+    background-size: cover;
+    background-position: center;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.6);
+    pointer-events: none;
+    will-change: transform;
+}
+.deck-label img { width: 100%; height: 100%; object-fit: cover; }
+.deck-label img:not([src]) { display: none; }
+.deck-label::after {
+    /* paper sheen + centre hole shadow; sits on top of the album art */
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle, rgba(0,0,0,0.6) 0 5%, transparent 6%),
+        linear-gradient(135deg, rgba(255,255,255,0.18), transparent 45%, rgba(0,0,0,0.25));
+}
+.deck-spindle {
+    position: absolute;
+    left: calc(var(--u) * 1.2);
+    top: calc(var(--u) * 1.35);
+    width: 6px; height: 6px;
+    margin: -3px 0 0 -3px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff, #9a9ea4 60%, #3f4247);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+.deck-arm {
+    position: absolute;
+    left: calc(var(--u) * 2.5);
+    top: calc(var(--u) * -0.3);
+    width: calc(var(--u) * 0.9);
+    height: calc(var(--u) * 3);
+    background: var(--img-tonearm) center / contain no-repeat;
+    transform-origin: 50% 19.33%;
+    transform: rotate(var(--arm));
+    transition: transform 900ms cubic-bezier(0.45, 0, 0.2, 1);
+    filter: drop-shadow(2px 5px 3px rgba(0,0,0,0.55));
+    pointer-events: none;
+}
+.deck-platter { cursor: grab; touch-action: none; }
+.deck.is-scratching .deck-platter { cursor: grabbing; }
+.deck-spindle { pointer-events: none; }
+#audio-player-bar.is-playing .deck-arm,
+.deck.is-scratching .deck-arm { transition: transform 120ms linear; }
+.deck-hint {
+    position: absolute;
+    left: 0; bottom: -2px;
+    width: calc(var(--u) * 2.4);
+    text-align: center;
+    font-family: var(--font-label);
+    font-size: 0.36rem;
+    letter-spacing: 0.16em;
+    color: var(--label);
+    opacity: 0;
+    transition: opacity var(--t-med);
+    pointer-events: none;
+}
+.deck:hover .deck-hint { opacity: 0.9; }
+
+/* --------------------------------------------------------------- info plate */
+.deck-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.deck-plate {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+#audio-track-title-wrapper {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 18px), transparent);
+            mask-image: linear-gradient(90deg, #000 calc(100% - 18px), transparent);
+}
+#audio-track-title {
+    display: inline-block;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: 1.2rem;
+    letter-spacing: 0.03em;
+    color: var(--alu-hi);
+    text-shadow: 0 -1px 0 rgba(0,0,0,0.9);
+    padding-right: 18px;
+}
+#audio-track-title.marquee-anim { animation: player-marquee var(--marquee-duration, 10s) linear infinite; }
+@keyframes player-marquee {
+    0%, 12% { transform: translateX(0); }
+    88%, 100% { transform: translateX(calc(var(--marquee-distance, 0px) * -1)); }
+}
+#audio-track-badges { display: flex; gap: 10px; align-items: center; flex: none; }
+#audio-track-badges .readout-group { display: flex; align-items: center; gap: 5px; }
+
+/* Progress: strobe ring stripe, click to seek */
+#audio-progress {
+    position: relative;
+    height: 12px;
+    border-radius: 2px;
+    cursor: pointer;
+    background:
+        repeating-linear-gradient(90deg, rgba(201,204,209,0.28) 0 1px, transparent 1px 4px),
+        #070708;
+    box-shadow: var(--well);
+    overflow: hidden;
+}
+#audio-progress-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 0%;
+    background: repeating-linear-gradient(90deg, var(--amber) 0 2px, transparent 2px 4px);
+    filter: drop-shadow(0 0 4px var(--amber-glow));
+}
+.deck-time { font-size: 0.8rem; }
+
+/* --------------------------------------------------------------- controls */
+.deck-controls { display: flex; align-items: flex-end; gap: 14px; flex: none; }
+#audio-play-pause.cap { --w: 74px; --h: 46px; font-size: 1rem; }
+
+/* --------------------------------------------------------------- responsive */
+@media (max-width: 640px) {
+    #audio-player-bar { padding: 0 4px calc(4px + env(safe-area-inset-bottom)); }
+    body:has(#audio-player-bar.active) { padding-bottom: 116px; }
+    .transport { grid-template-columns: 8px minmax(0, 1fr) 8px; }
+    .transport-face { gap: 10px; padding: 8px 10px; }
+    .deck { --u: 27px; }
+    #audio-track-title { font-size: 1rem; }
+    .deck-plate { flex-wrap: wrap; gap: 6px; }
+    #audio-track-title-wrapper { flex-basis: 100%; }
+    .deck-time { display: none; }
+    .deck-controls .fn-legend { display: none; }
+    .deck-controls { gap: 8px; align-items: center; }
+    #audio-play-pause.cap { --w: 56px; --h: 40px; }
+}
