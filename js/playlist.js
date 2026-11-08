@@ -1,11 +1,22 @@
+// What an armed delete cap shows (storage.js provides CONFIRM_HTML).
+function confirmGlyph() {
+    return typeof CONFIRM_HTML !== 'undefined' ? CONFIRM_HTML : '<i class="fas fa-question"></i>';
+}
+function confirmTimeout() {
+    return typeof DEFAULT_CONFIRM_TIMEOUT_MS !== 'undefined' ? DEFAULT_CONFIRM_TIMEOUT_MS : 8000;
+}
+
+// Track-count readout on a card ("05 TRK").
+function setCardTrackCount(card, n) {
+    const countEl = card.querySelector('.diag-track-count');
+    if (countEl) countEl.textContent = String(n).padStart(2, '0');
+}
+
 // ── Remove Individual Track from Curated Playlist (Pruning) ──
 function removeTrackFromMix(ts, trackIndex, btn) {
-    if (btn) {
-        const badge = '<span class="text-[8.5px] font-extrabold uppercase text-[#ff3333] bg-[#220000] border border-[#ff3333] px-1 py-[1px] rounded shadow-[0_0_6px_rgba(255,51,51,0.6)] cursor-pointer select-none pointer-events-none">Delete?</span>';
-        if (typeof armConfirmButton === 'function') {
-            if (armConfirmButton(btn, badge, 'Click again to confirm delete', typeof DEFAULT_CONFIRM_TIMEOUT_MS !== 'undefined' ? DEFAULT_CONFIRM_TIMEOUT_MS : 8000, { width: 'auto', padding: '0 4px' })) {
-                return;
-            }
+    if (btn && typeof armConfirmButton === 'function') {
+        if (armConfirmButton(btn, confirmGlyph(), 'Click again to remove this track', confirmTimeout())) {
+            return;
         }
     }
 
@@ -14,11 +25,7 @@ function removeTrackFromMix(ts, trackIndex, btn) {
 
     // Animate DOM row removal
     const row = btn ? btn.closest('.track-row') : document.getElementById(`track-${ts}-${trackIndex}`);
-    if (row) {
-        row.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
-        row.style.opacity = '0';
-        row.style.transform = 'translateX(-15px)';
-    }
+    if (row) row.classList.add('is-removing');
 
     // Close player if this playing track is being deleted
     if (typeof closeAudioPlayer === 'function' && typeof currentPreviewBtn !== 'undefined' && currentPreviewBtn && row && row.contains(currentPreviewBtn)) {
@@ -37,15 +44,9 @@ function removeTrackFromMix(ts, trackIndex, btn) {
 
                 if (mix.tracks.length === 0) {
                     history.splice(mixIndex, 1);
-                    saveHistory(history);
-                    if (typeof rebuildFeed === 'function') rebuildFeed();
-                    return;
                 }
-
                 saveHistory(history);
-                if (typeof rebuildFeed === 'function') {
-                    rebuildFeed();
-                }
+                if (typeof rebuildFeed === 'function') rebuildFeed();
             }
         } else {
             // For demo card or transient card not yet in history
@@ -56,8 +57,7 @@ function removeTrackFromMix(ts, trackIndex, btn) {
             const card = document.querySelector(`[data-ts="${ts}"]`);
             if (card) {
                 const remaining = card.querySelectorAll('.track-row').length;
-                const countSpan = card.querySelector('.diag-track-count') || card.querySelectorAll('span.font-bold.text-\\[11px\\]')[0];
-                if (countSpan) countSpan.textContent = remaining;
+                setCardTrackCount(card, remaining);
                 if (remaining === 0) card.remove();
             }
         }
@@ -65,47 +65,35 @@ function removeTrackFromMix(ts, trackIndex, btn) {
 }
 
 // ── Copy Single Track ──
-async function copyTrackName(span) {
-    const track = span.getAttribute('data-track');
+// `el` carries the raw "Artist - Title" in data-track; it flashes a COPIED tag.
+async function copyTrackName(el) {
+    const track = el.getAttribute('data-track') || '';
     try { await navigator.clipboard.writeText(track); }
     catch {
-        const el = document.createElement('textarea');
-        el.value = track;
-        document.body.appendChild(el);
-        el.select();
+        const ta = document.createElement('textarea');
+        ta.value = track;
+        document.body.appendChild(ta);
+        ta.select();
         document.execCommand('copy');
-        document.body.removeChild(el);
+        document.body.removeChild(ta);
     }
-    const nameEl = span.querySelector ? span.querySelector('.track-name') : null;
-    if (nameEl) {
-        const orig = nameEl.innerHTML;
-        nameEl.innerHTML = '<i class="fas fa-check text-[#39ff14] mr-1"></i><span class="text-[#39ff14]">Copied!</span>';
-        setTimeout(() => { nameEl.innerHTML = orig; }, 1200);
-    } else {
-        const orig = span.innerHTML;
-        span.innerHTML = '<i class="fas fa-check text-[#39ff14] mr-1"></i><span class="text-[#39ff14]">Copied!</span>';
-        setTimeout(() => { span.innerHTML = orig; }, 1200);
-    }
+    el.classList.add('is-copied');
+    clearTimeout(el._copiedTimer);
+    el._copiedTimer = setTimeout(() => el.classList.remove('is-copied'), 1200);
 }
 
 // ── Delete Individual Playlist ──
 function deleteMix(btn, ts) {
-    // If called with a button element, use inline confirmation with outside-click dismissal
-    if (btn) {
-        const badge = '<span class="text-[9px] font-extrabold uppercase text-[#ff3333] bg-[#220000] border border-[#ff3333] px-1.5 py-[2px] rounded shadow-[0_0_6px_rgba(255,51,51,0.6)] cursor-pointer select-none pointer-events-none">Delete?</span>';
-        if (typeof armConfirmButton === 'function') {
-            if (armConfirmButton(btn, badge, 'Click again to confirm delete', typeof DEFAULT_CONFIRM_TIMEOUT_MS !== 'undefined' ? DEFAULT_CONFIRM_TIMEOUT_MS : 8000)) {
-                return;
-            }
+    if (btn && typeof armConfirmButton === 'function') {
+        if (armConfirmButton(btn, confirmGlyph(), 'Click again to eject (delete) this program', confirmTimeout())) {
+            return;
         }
     }
 
     const card = (btn && btn.closest('[data-ts]')) || document.querySelector(`[data-ts="${ts}"]`);
     if (!card) return;
 
-    card.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
-    card.style.opacity = '0';
-    card.style.transform = 'scale(0.95)';
+    card.classList.add('is-ejecting');
 
     // Close player if playing track is within this deleted mix
     if (typeof closeAudioPlayer === 'function' && typeof currentPreviewBtn !== 'undefined' && currentPreviewBtn && card.contains(currentPreviewBtn)) {
@@ -121,8 +109,8 @@ function deleteMix(btn, ts) {
         updateHistoryControls();
 
         const container = document.getElementById('mixes-container');
-        if (container && (!container.children || container.children.length === 0)) {
-            container.innerHTML = '<div class="text-center text-[#555] text-[11px] py-8 uppercase tracking-widest"><i class="fas fa-compact-disc mr-2"></i>No playlists yet — enter a prompt above to hunt tracks.</div>';
+        if (container && container.children.length === 0) {
+            container.innerHTML = feedEmptyHTML();
         }
     }, 200);
 }
@@ -133,26 +121,20 @@ function deleteSelectedTracks(ts, btn) {
     if (!selectedIndices || selectedIndices.size === 0) return;
 
     const count = selectedIndices.size;
-    if (btn) {
-        const confirmHtml = `<i class="fas fa-trash-alt text-[10px] mr-1"></i> Confirm Delete?`;
-        if (typeof armConfirmButton === 'function') {
-            if (armConfirmButton(btn, confirmHtml, `Click again to confirm deleting selected tracks`, typeof DEFAULT_CONFIRM_TIMEOUT_MS !== 'undefined' ? DEFAULT_CONFIRM_TIMEOUT_MS : 8000)) {
-                return;
-            }
+    if (btn && typeof armConfirmButton === 'function') {
+        if (armConfirmButton(btn, confirmGlyph(), `Click again to delete ${count} selected track${count === 1 ? '' : 's'}`, confirmTimeout())) {
+            return;
         }
     }
 
     // Close audio player if any playing track is among those selected for deletion
     if (typeof closeAudioPlayer === 'function' && typeof currentPreviewBtn !== 'undefined' && currentPreviewBtn) {
-        const card = document.querySelector(`[data-ts="${ts}"]`);
-        if (card) {
-            selectedIndices.forEach(idx => {
-                const row = document.getElementById(`track-${ts}-${idx}`);
-                if (row && row.contains(currentPreviewBtn)) {
-                    closeAudioPlayer();
-                }
-            });
-        }
+        selectedIndices.forEach(idx => {
+            const row = document.getElementById(`track-${ts}-${idx}`);
+            if (row && row.contains(currentPreviewBtn)) {
+                closeAudioPlayer();
+            }
+        });
     }
 
     const history = typeof getHistory === 'function' ? getHistory() : [];
@@ -169,13 +151,13 @@ function deleteSelectedTracks(ts, btn) {
                 history.splice(mixIndex, 1);
                 saveHistory(history);
                 if (typeof rebuildFeed === 'function') rebuildFeed();
-                if (typeof showNotice === 'function') showNotice('✓ Playlist deleted as all tracks were removed.', 4000);
+                if (typeof showNotice === 'function') showNotice('✓ Program ejected: all its tracks were removed.', 4000);
                 return;
             }
 
             saveHistory(history);
             if (typeof rebuildFeed === 'function') rebuildFeed();
-            if (typeof showNotice === 'function') showNotice(`✓ Successfully removed ${count} tracks from playlist.`, 4000);
+            if (typeof showNotice === 'function') showNotice(`✓ Removed ${count} track${count === 1 ? '' : 's'} from the program.`, 4000);
         }
     } else {
         // Fallback for transient or unpersisted demo card
@@ -186,11 +168,10 @@ function deleteSelectedTracks(ts, btn) {
                 if (row) row.remove();
             });
             const remaining = card.querySelectorAll('.track-row').length;
-            const countSpan = card.querySelector('.diag-track-count') || card.querySelectorAll('span.font-bold.text-\\[11px\\]')[0];
-            if (countSpan) countSpan.textContent = remaining;
+            setCardTrackCount(card, remaining);
             if (remaining === 0) card.remove();
         }
         if (typeof exitSelectionMode === 'function') exitSelectionMode(ts);
-        if (typeof showNotice === 'function') showNotice(`✓ Successfully removed ${count} tracks.`, 4000);
+        if (typeof showNotice === 'function') showNotice(`✓ Removed ${count} track${count === 1 ? '' : 's'}.`, 4000);
     }
 }

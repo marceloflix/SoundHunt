@@ -18,69 +18,79 @@ async function fetchWithRetry(url, options, retries = 2) {
     throw new Error('MAX_RETRIES');
 }
 
+// ── Dial messages: errors, notices and loading text all show on the tuner glass ──
+const DEPTH_ZONES = [
+    { value: 'deep-cuts', center: 1 / 6, label: 'UNDERGROUND' },
+    { value: 'balanced', center: 0.5, label: 'BALANCED' },
+    { value: 'mainstream', center: 5 / 6, label: 'MAINSTREAM' },
+];
+let _dialTimer = null;
+let _dialKind = '';
+
+function dialIdleText() {
+    if (typeof isPowered === 'function' && !isPowered()) return '';
+    const zone = DEPTH_ZONES.find(z => z.value === getActiveDiscoveryChip()) || DEPTH_ZONES[1];
+    return `READY · ${getTrackCount()} TRACKS · ${zone.label}`;
+}
+
+// kind: '' | 'error' | 'notice' | 'loading'. holdMs > 0 returns to the idle text afterwards.
+function setDialMessage(text, kind = '', holdMs = 0) {
+    const el = document.getElementById('dial-msg');
+    if (!el) return;
+    clearTimeout(_dialTimer);
+    _dialKind = kind;
+    el.className = 'dial-msg' + (kind ? ' is-' + kind : '');
+    el.textContent = text;
+    if (holdMs > 0) _dialTimer = setTimeout(refreshDialIdle, holdMs);
+}
+
+function refreshDialIdle() {
+    setDialMessage(dialIdleText());
+}
+
 function showError(msg) {
-    const errorDiv = document.getElementById('ai-error');
-    errorDiv.innerHTML = msg;
-    errorDiv.classList.remove('hidden');
+    setDialMessage(msg, 'error', 9000);
 }
 
 function showNotice(msg, autoDismissMs = 8000) {
-    const noticeDiv = document.getElementById('ai-notice');
-    if (!noticeDiv) return;
-    noticeDiv.innerHTML = msg;
-    noticeDiv.classList.remove('hidden');
-    if (autoDismissMs > 0) {
-        setTimeout(() => {
-            if (noticeDiv.innerHTML === msg) {
-                noticeDiv.classList.add('hidden');
-            }
-        }, autoDismissMs);
-    }
+    setDialMessage(msg, 'notice', autoDismissMs);
 }
 
 function hideNotice() {
-    const noticeDiv = document.getElementById('ai-notice');
-    if (noticeDiv) noticeDiv.classList.add('hidden');
+    if (_dialKind === 'notice') refreshDialIdle();
 }
 
 // ── Rate-Limit Countdown ──
+let _rateTimer = null;
 function showRateLimitCountdown(seconds = 20) {
     let remaining = seconds;
-    const errorDiv = document.getElementById('ai-error');
-    errorDiv.classList.remove('hidden');
-    const update = () => {
-        errorDiv.innerHTML = `RATE LIMITED. Retry in <span style="color:#ffcc00;font-size:14px">${remaining}s</span> — temporary request limit reached. Please wait a moment.`;
-    };
+    clearInterval(_rateTimer);
+    const update = () => setDialMessage(`RATE LIMITED · RETRY IN ${remaining}s`, 'error');
     update();
-    const timer = setInterval(() => {
+    _rateTimer = setInterval(() => {
         remaining--;
-        if (remaining <= 0) {
-            clearInterval(timer);
-            errorDiv.classList.add('hidden');
-            return;
-        }
+        if (remaining <= 0) { clearInterval(_rateTimer); refreshDialIdle(); return; }
         update();
     }, 1000);
 }
 
 // ── Loading Messages ──
 const LOADING_MSGS = [
-    'HUNTING DOWN RARE TRACKS...',
-    'DIGGING THROUGH VINYL ARCHIVES...',
-    'ANALYZING SONIC FREQUENCIES...',
-    'UNEARTHING BURIED GEMS...',
-    'MATCHING VIBES & ERAS...',
-    'CURATING YOUR SOUNDHUNT LIST...'
+    'SCANNING THE AIRWAVES…',
+    'DIGGING THROUGH VINYL ARCHIVES…',
+    'UNEARTHING BURIED GEMS…',
+    'MATCHING VIBES & ERAS…',
+    'CURATING YOUR PROGRAM…'
 ];
 let loadingInterval = null;
 
 function startLoadingMessages() {
     let idx = 0;
-    const el = document.getElementById('loading-msg');
-    if (el) el.textContent = LOADING_MSGS[0];
+    setDialMessage(LOADING_MSGS[0], 'loading');
+    clearInterval(loadingInterval);
     loadingInterval = setInterval(() => {
         idx = (idx + 1) % LOADING_MSGS.length;
-        if (el) el.textContent = LOADING_MSGS[idx];
+        setDialMessage(LOADING_MSGS[idx], 'loading');
     }, 1800);
 }
 
@@ -153,24 +163,26 @@ async function executeGeminiGenerate(apiKey, prompt) {
 }
 
 // ── Generate Playlist ──
+let _generating = false;
+
 async function generateMix() {
+    // Like the real thing: nothing works until POWER is on.
+    if (typeof isPowered === 'function' && !isPowered()) { if (typeof nudgePower === 'function') nudgePower(); return; }
+    if (_generating) return; // HUNT is already scanning (also stops Enter from double-firing)
+
     const apiKey = getApiKey();
-    if (!apiKey) { openSettings(); showError('API KEY REQUIRED. Click the ⚙ gear to configure.'); return; }
+    if (!apiKey) { showError('NO ANTENNA · CONNECT YOUR GEMINI KEY ON THE REAR PANEL'); openSettings(); return; }
 
     const vibeInput = document.getElementById('ai-vibe');
     const vibe = vibeInput.value.trim() || 'Retro 2000s Pop';
     const trackCount = getTrackCount();
 
     const btn = document.getElementById('generate-btn');
-    const loading = document.getElementById('ai-loading');
-    const errorDiv = document.getElementById('ai-error');
-
-    btn.disabled = true;
-    btn.classList.add('opacity-50', 'cursor-not-allowed');
-    loading.classList.remove('hidden');
+    _generating = true;
+    btn.classList.add('is-busy');
     startLoadingMessages();
-    errorDiv.classList.add('hidden');
-    hideNotice();
+    const stopScan = SHControls.scanDial(document.getElementById('dial'), document.querySelectorAll('.glass-meters .meter'));
+    let lockedText = '';
 
     const persona = getPromptPersona() || 'an elite music curator and musicologist with encyclopedic knowledge of genres, eras, and discographies';
     const constraints = getPromptConstraints();
@@ -220,6 +232,8 @@ Output specifications:
         renderNewMix(mixData, true);
         savePrompt(vibe);
         vibeInput.value = '';
+        releasePresets();
+        lockedText = `LOCKED · ${(mixData.tracks || []).length} TRACKS FOUND`;
 
         if (getAutoScroll()) {
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -227,39 +241,35 @@ Output specifications:
     } catch (error) {
         console.error('Gemini API Error:', error);
         const msg = error.message || '';
+        stopLoadingMessages();
         if (msg.includes('API_KEY_ERROR')) {
-            showError('INVALID API KEY. Check your key in ⚙ Settings.');
+            showError('BAD ANTENNA · CHECK YOUR API KEY ON THE REAR PANEL');
         } else if (msg.includes('RATE_LIMIT') || msg.includes('QUOTA_EXHAUSTED') || msg.includes('MAX_RETRIES') || msg.includes('429')) {
             showRateLimitCountdown(20);
         } else {
-            showError('CONNECTION FAILED. Please try again.');
+            showError('NO SIGNAL · CONNECTION FAILED, PLEASE TRY AGAIN');
         }
     } finally {
-        btn.disabled = false;
-        btn.classList.remove('opacity-50', 'cursor-not-allowed');
-        loading.classList.add('hidden');
+        _generating = false;
+        btn.classList.remove('is-busy');
         stopLoadingMessages();
+        const zone = DEPTH_ZONES.find(z => z.value === chip) || DEPTH_ZONES[1];
+        stopScan(zone.center);
+        if (lockedText) setDialMessage(lockedText, '', 6000);
     }
 }
 
 // ── Discovery Popularity Chips (Main Interface) ──
+// The discovery depth is the tuning needle (set with the flywheel, see ui.js).
+let _depthDial = null;
+
 function getActiveDiscoveryChip() {
-    const activeBtn = document.querySelector('.discovery-chip.active');
-    if (activeBtn) return activeBtn.dataset.mode;
+    if (_depthDial) return _depthDial.get();
     return localStorage.getItem('soundhunt_discovery_chip') || 'balanced';
 }
 
 function setDiscoveryChip(mode) {
-    document.querySelectorAll('.discovery-chip').forEach(btn => {
-        if (btn.dataset.mode === mode) {
-            btn.classList.add('active', 'border-[#39ff14]', 'text-[#39ff14]', 'bg-[#0a2a0a]', 'shadow-[0_0_8px_rgba(57,255,20,0.3)]');
-            btn.classList.remove('border-[#444]', 'border-[#333]', 'text-white', 'text-[#888]', 'bg-[#0a0a0a]');
-        } else {
-            btn.classList.remove('active', 'border-[#39ff14]', 'text-[#39ff14]', 'bg-[#0a2a0a]', 'shadow-[0_0_8px_rgba(57,255,20,0.3)]');
-            btn.classList.add('border-[#444]', 'text-white', 'bg-[#0a0a0a]');
-            btn.classList.remove('text-[#888]');
-        }
-    });
+    if (_depthDial) _depthDial.set(mode);
     localStorage.setItem('soundhunt_discovery_chip', mode);
 }
 
@@ -302,17 +312,7 @@ function closeDigDeeperModal() {
 function setDigDeeperCount(cnt) {
     const count = Math.max(1, Math.min(25, parseInt(cnt, 10) || 5));
     _digDeeperTarget.count = count;
-
-    document.querySelectorAll('.dig-count-btn').forEach(btn => {
-        const btnCount = parseInt(btn.dataset.count, 10);
-        if (btnCount === count) {
-            btn.classList.add('active', 'border-[#3399ff]', 'bg-[#002244]', 'text-[#3399ff]', 'shadow-[0_0_8px_rgba(51,153,255,0.3)]');
-            btn.classList.remove('border-[#444]', 'bg-[#111]', 'text-white');
-        } else {
-            btn.classList.remove('active', 'border-[#3399ff]', 'bg-[#002244]', 'text-[#3399ff]', 'shadow-[0_0_8px_rgba(51,153,255,0.3)]');
-            btn.classList.add('border-[#444]', 'bg-[#111]', 'text-white');
-        }
-    });
+    latchDigCount(count);
 
     const customInput = document.getElementById('dig-deeper-custom-count');
     if (customInput) customInput.value = count;
@@ -322,17 +322,15 @@ function onDigCustomCountChange(val) {
     const parsed = parseInt(val, 10);
     if (!isNaN(parsed) && parsed >= 1 && parsed <= 25) {
         _digDeeperTarget.count = parsed;
-        document.querySelectorAll('.dig-count-btn').forEach(btn => {
-            const btnCount = parseInt(btn.dataset.count, 10);
-            if (btnCount === parsed) {
-                btn.classList.add('active', 'border-[#3399ff]', 'bg-[#002244]', 'text-[#3399ff]', 'shadow-[0_0_8px_rgba(51,153,255,0.3)]');
-                btn.classList.remove('border-[#444]', 'bg-[#111]', 'text-white');
-            } else {
-                btn.classList.remove('active', 'border-[#3399ff]', 'bg-[#002244]', 'text-[#3399ff]', 'shadow-[0_0_8px_rgba(51,153,255,0.3)]');
-                btn.classList.add('border-[#444]', 'bg-[#111]', 'text-white');
-            }
-        });
+        latchDigCount(parsed);
     }
+}
+
+// The 3 / 5 / 10 keys latch like presets; a custom number releases them all.
+function latchDigCount(count) {
+    document.querySelectorAll('.dig-count-btn').forEach(btn => {
+        btn.classList.toggle('is-latched', parseInt(btn.dataset.count, 10) === count);
+    });
 }
 
 // Backwards compatibility alias
@@ -346,22 +344,22 @@ async function executeDigDeeper() {
     const apiKey = getApiKey();
     if (!apiKey) {
         closeDigDeeperModal();
+        showError('NO ANTENNA · CONNECT YOUR GEMINI KEY ON THE REAR PANEL');
         if (typeof openSettings === 'function') openSettings();
-        showError('API KEY REQUIRED. Click ⚙ to configure your Gemini key.');
         return;
     }
 
     const submitBtn = document.getElementById('dig-deeper-submit-btn');
-    const originalHtml = submitBtn ? submitBtn.innerHTML : 'Hunt & Add Tracks';
+    const originalHtml = submitBtn ? submitBtn.innerHTML : '';
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Hunting Tracks...';
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     }
 
     const songLabel = artist ? `${artist} - ${title}` : title;
     closeDigDeeperModal();
 
-    showNotice(`🔍 Hunting ${count} similar tracks matching "${songLabel}"...`, 15000);
+    showNotice(`FINE TUNING · ${count} TRACKS LIKE ${songLabel}`, 15000);
 
     // Look up target mix upfront to build the exclusion list
     const history = typeof getHistory === 'function' ? getHistory() : [];
@@ -418,7 +416,7 @@ Output:
         const newTracks = Array.isArray(geminiResult.tracks) ? geminiResult.tracks : [];
 
         if (newTracks.length === 0) {
-            showError('No similar tracks could be unearthed for this song.');
+            showError('NO SIGNAL · NO SIMILAR TRACKS FOUND FOR THIS SONG');
             return;
         }
 
@@ -480,7 +478,7 @@ Output:
         }
 
         if (uniqueProcessedTracks.length === 0) {
-            showError('All discovered tracks were already in the playlist. Please try again.');
+            showError('ALL FOUND TRACKS WERE ALREADY IN THIS PROGRAM · TRY AGAIN');
             return;
         }
 
@@ -502,15 +500,15 @@ Output:
                 });
             }
 
-            showNotice(`✓ Added ${uniqueProcessedTracks.length} unique tracks similar to "${songLabel}" directly into playlist!`, 5000);
+            showNotice(`LOCKED · ADDED ${uniqueProcessedTracks.length} TRACKS LIKE ${songLabel}`, 6000);
 
             // Scroll to the first newly added track and briefly highlight it
             setTimeout(() => {
                 const firstNewEl = document.getElementById(`track-${ts}-${firstNewIndex}`);
                 if (firstNewEl) {
                     firstNewEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    firstNewEl.style.backgroundColor = 'rgba(0, 51, 102, 0.4)';
-                    setTimeout(() => { firstNewEl.style.backgroundColor = 'transparent'; }, 1500);
+                    firstNewEl.classList.add('is-flash');
+                    setTimeout(() => firstNewEl.classList.remove('is-flash'), 1500);
                 } else {
                     const card = document.querySelector(`[data-ts="${ts}"]`);
                     if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -521,10 +519,11 @@ Output:
             geminiResult.tracks = uniqueProcessedTracks;
             geminiResult._prompt = `Hunted from: ${artist ? artist + ' - ' : ''}${title}`;
             renderNewMix(geminiResult, true);
-            showNotice(`✓ Created new playlist with ${uniqueProcessedTracks.length} tracks similar to "${songLabel}"!`, 5000);
+            showNotice(`LOCKED · NEW PROGRAM WITH ${uniqueProcessedTracks.length} TRACKS LIKE ${songLabel}`, 6000);
         }
     } catch (err) {
-        showError(`Failed to unearth similar tracks: ${err.message}`);
+        console.error('Dig deeper error:', err);
+        showError('NO SIGNAL · FINE TUNE FAILED, PLEASE TRY AGAIN');
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;

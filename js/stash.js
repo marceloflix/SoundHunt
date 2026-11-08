@@ -1,5 +1,5 @@
-// ── SoundHunt: Download Stash System ──
-// Stores keeper tracks for batch downloading via Monochrome and streaming on Spotify.
+// ── SoundHunt: Download Stash (the CRATE drawer) ──
+// Stores keeper tracks for one-tap downloading via Monochrome.
 
 const STASH_KEY = 'soundhunt_download_stash';
 
@@ -73,22 +73,17 @@ function toggleStashTrack(track, btn) {
     // Update all matching star buttons currently rendered on screen
     updateAllMatchingStarButtons(artist, title, !alreadyStashed);
 
-    // If drawer is open, re-render immediately
-    const drawer = document.getElementById('stash-drawer');
-    if (drawer && !drawer.classList.contains('translate-x-full')) {
-        renderStash();
-    }
+    // If the crate is open, re-render immediately
+    if (isStashDrawerOpen()) renderStash();
 }
 
 function updateStarButtonUI(btn, active) {
     if (!btn) return;
-    if (active) {
-        btn.classList.add('is-stashed');
-        btn.title = 'In Download Stash (Click to remove)';
-    } else {
-        btn.classList.remove('is-stashed');
-        btn.title = 'Save to Download Stash';
-    }
+    // is-stashed for feed styling, is-active lights a .key cap
+    btn.classList.toggle('is-stashed', !!active);
+    btn.classList.toggle('is-active', !!active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    btn.title = active ? 'In the crate (click to remove)' : 'Save to crate';
 }
 
 function updateAllMatchingStarButtons(artist, title, active) {
@@ -103,19 +98,19 @@ function updateAllMatchingStarButtons(artist, title, active) {
     });
 }
 
+// Top-strip SAVED window: two 7-segment digits ("03"), dim when the crate is empty.
 function updateStashBadge() {
-    const stash = getStash();
+    const count = getStash().length;
     const badge = document.getElementById('stash-count-badge');
-    if (badge) {
-        badge.textContent = stash.length;
-        if (stash.length > 0) {
-            badge.classList.remove('bg-[#333]', 'text-[#888]');
-            badge.classList.add('bg-[#ffcc00]', 'text-black', 'font-black');
-        } else {
-            badge.classList.remove('bg-[#ffcc00]', 'text-black', 'font-black');
-            badge.classList.add('bg-[#333]', 'text-[#888]');
-        }
-    }
+    if (!badge) return;
+    badge.textContent = String(Math.min(99, count)).padStart(2, '0');
+    badge.classList.toggle('is-zero', count === 0);
+    badge.title = count === 1 ? '1 track in the crate' : `${count} tracks in the crate`;
+}
+
+function isStashDrawerOpen() {
+    const drawer = document.getElementById('stash-drawer');
+    return !!(drawer && drawer.classList.contains('is-open'));
 }
 
 function openStashDrawer() {
@@ -123,7 +118,7 @@ function openStashDrawer() {
     const overlay = document.getElementById('stash-overlay');
     if (!drawer) return;
     renderStash();
-    drawer.classList.remove('translate-x-full');
+    drawer.classList.add('is-open');
     if (overlay) overlay.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
 }
@@ -132,10 +127,17 @@ function closeStashDrawer() {
     const drawer = document.getElementById('stash-drawer');
     const overlay = document.getElementById('stash-overlay');
     if (!drawer) return;
-    drawer.classList.add('translate-x-full');
+    drawer.classList.remove('is-open');
     if (overlay) overlay.classList.add('hidden');
     document.body.style.overflow = '';
 }
+
+function stashSearchUrl(item) {
+    const queryTerm = `${cleanQuery(item.artist)} ${cleanQuery(item.title)}`.trim();
+    return 'https://monochrome.tf/search/' + encodeURIComponent(queryTerm).replace(/'/g, '%27');
+}
+
+const CRATE_MONOCHROME_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="14.75 14.75 70.5 70.5" aria-hidden="true"><path fill="currentColor" d="M38.25 14.75H85.25V61.75H61.75V38.25H38.25ZM14.75 38.25H38.25V61.75H61.75V85.25H14.75Z"/></svg>';
 
 function renderStash() {
     const container = document.getElementById('stash-content');
@@ -144,76 +146,57 @@ function renderStash() {
     const stash = getStash();
     if (stash.length === 0) {
         container.innerHTML = `
-            <div class="py-12 px-4 text-center text-[#666]">
-                <i class="fas fa-box-open text-3xl text-[#444] mb-3"></i>
-                <h4 class="text-white font-bold text-sm uppercase tracking-wider mb-1">Your Stash is Empty</h4>
-                <p class="text-[11px] max-w-xs mx-auto leading-relaxed">
-                    While exploring songs, click the <span class="text-[#ffcc00] font-bold">★ star</span> on any track to save it here. You can then download it in one click via <span class="text-[#bb86fc] font-bold">Monochrome</span>.
-                </p>
+            <div class="crate-empty">
+                <span class="readout">CRATE EMPTY</span>
+                <p>Press the <i class="fas fa-star" aria-hidden="true"></i> key on any track to drop it in the crate, then pull it out on <b>Monochrome</b> in one tap.</p>
             </div>`;
         return;
     }
 
+    const count = Math.min(99, stash.length);
     let html = `
-        <div class="flex justify-between items-center pb-2 border-b border-[#222] mb-3">
-            <span class="text-[10px] text-[#888] uppercase font-bold tracking-wider">${stash.length} Keeper${stash.length > 1 ? 's' : ''} Stashed</span>
-            <button onclick="clearStash(this)" class="text-[#ff4444] hover:text-[#ff6666] text-[9.5px] uppercase font-bold transition-colors cursor-pointer">
-                <i class="fas fa-trash-alt mr-1"></i> Clear Stash
-            </button>
+        <div class="crate-bar">
+            <div class="fn">
+                <span class="fn-legend">In crate</span>
+                <span class="seg" data-ghost="88">${String(count).padStart(2, '0')}</span>
+            </div>
+            <span class="engraved engraved-sm crate-bar-note">${stash.length === 1 ? '1 record' : `${stash.length} records`}</span>
+            <div class="fn">
+                <span class="fn-legend">Clear crate</span>
+                <button type="button" class="cap cap-sq cap-danger" onclick="clearStash(this)" title="Clear crate" aria-label="Clear crate"><i class="fas fa-trash-can"></i></button>
+            </div>
         </div>
-        <div class="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
+        <ol class="crate-list">
     `;
 
     stash.forEach((item, idx) => {
-        const fullTitle = item.artist ? `${item.artist} - ${item.title}` : item.title;
-        const queryTerm = `${cleanQuery(item.artist)} ${cleanQuery(item.title)}`.trim();
-        const searchUrl = 'https://monochrome.tf/search/' + encodeURIComponent(queryTerm).replace(/'/g, '%27');
-        const artistEscaped = (item.artist || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        const titleEscaped = (item.title || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        const displayTitleEscaped = fullTitle.replace(/"/g, '&quot;');
+        const url = stashSearchUrl(item);
+        const artistJs = escapeJsAttr(item.artist || '');
+        const titleJs = escapeJsAttr(item.title || '');
+        const full = item.artist ? `${item.artist} - ${item.title}` : item.title;
 
         html += `
-            <div onclick="window.open('${searchUrl}', '_blank', 'noopener,noreferrer')"
-                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.open('${searchUrl}', '_blank', 'noopener,noreferrer');}"
-                 role="link"
-                 tabindex="0"
-                 class="bg-[#0a0a0a] border border-[#222] p-2.5 flex items-center justify-between gap-2 hover:border-[#bb86fc] hover:bg-[#140e1f] transition-all group cursor-pointer focus:outline-none focus:border-[#bb86fc]">
-                <div class="min-w-0 flex-1 pointer-events-none">
-                    <div class="text-white text-[12px] font-bold truncate leading-tight group-hover:text-[#bb86fc] transition-colors">${fullTitle}</div>
-                    <div class="flex items-center justify-end mt-0.5">
-                        <span class="text-[#555] text-[9px]">#${idx + 1}</span>
-                    </div>
-                </div>
-                <div class="flex items-center gap-1.5 shrink-0">
-                    <!-- Monochrome Indicator Badge (Non-clickable visual indicator) -->
-                    <div aria-label="Monochrome Download Ready"
-                         class="flex items-center justify-center w-7 h-7 bg-[#1a0033] border border-[#5500aa] text-[#bb86fc] group-hover:border-[#bb86fc] group-hover:bg-[#2a0055] group-hover:shadow-[0_0_8px_rgba(187,134,252,0.5)] transition-all pointer-events-none select-none shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="14.75 14.75 70.5 70.5" aria-hidden="true">
-                            <g fill="currentColor"><path d="M38.25 14.75H85.25V61.75H61.75V38.25H38.25ZM14.75 38.25H38.25V61.75H61.75V85.25H14.75Z"/></g>
-                        </svg>
-                    </div>
-                    <!-- Remove from Stash Button with In-Place Confirmation -->
-                    <button type="button"
-                            onclick="event.stopPropagation(); removeStashTrackFromDrawer('${artistEscaped}', '${titleEscaped}', this)"
-                            title="Remove track from stash" aria-label="Remove track from stash"
-                            class="relative z-10 flex items-center justify-center min-w-[28px] h-7 px-1 bg-[#1a1a1a] border border-[#333] text-[#777] hover:border-[#ff4444] hover:text-[#ff4444] hover:bg-[#2a0000] transition-all cursor-pointer">
-                        <i class="fas fa-times text-xs pointer-events-none"></i>
-                    </button>
-                </div>
-            </div>
+            <li class="crate-item">
+                <span class="crate-num">${String(idx + 1).padStart(2, '0')}</span>
+                <a class="crate-label" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="Find ${escapeHtml(full)} on Monochrome">
+                    <span class="crate-title-text">${escapeHtml(item.title || '—')}</span>
+                    <span class="crate-artist">${escapeHtml(item.artist || 'Unknown artist')}</span>
+                </a>
+                <a class="key key-mono" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="Open on Monochrome" aria-label="Open ${escapeHtml(full)} on Monochrome">${CRATE_MONOCHROME_SVG}</a>
+                <button type="button" class="key key-remove" onclick="removeStashTrackFromDrawer('${artistJs}', '${titleJs}', this)" title="Remove from crate" aria-label="Remove ${escapeHtml(full)} from crate"><i class="fas fa-xmark"></i></button>
+            </li>
         `;
     });
 
-    html += `</div>`;
+    html += `</ol>`;
     container.innerHTML = html;
 }
 
 // ── Remove Individual Track from Stash Drawer with Confirmation ──
 function removeStashTrackFromDrawer(artist, title, btn) {
     if (btn) {
-        const badge = '<span class="text-[8.5px] font-extrabold uppercase text-[#ff3333] bg-[#220000] border border-[#ff3333] px-1 py-[1px] rounded shadow-[0_0_6px_rgba(255,51,51,0.6)] cursor-pointer select-none pointer-events-none">Delete?</span>';
         if (typeof armConfirmButton === 'function') {
-            if (armConfirmButton(btn, badge, 'Click again to remove from stash', typeof DEFAULT_CONFIRM_TIMEOUT_MS !== 'undefined' ? DEFAULT_CONFIRM_TIMEOUT_MS : 8000, { width: 'auto', padding: '0 4px' })) {
+            if (armConfirmButton(btn, CONFIRM_HTML, 'Click again to remove from crate')) {
                 return;
             }
         }
@@ -233,14 +216,13 @@ function removeStashTrackFromDrawer(artist, title, btn) {
 
 function clearStash(btn) {
     if (btn) {
-        const badge = '<span class="text-[9.5px] font-extrabold uppercase text-[#ff3333] bg-[#220000] border border-[#ff3333] px-1.5 py-[1px] rounded shadow-[0_0_6px_rgba(255,51,51,0.6)] pointer-events-none">Clear all?</span>';
         if (typeof armConfirmButton === 'function') {
-            if (armConfirmButton(btn, badge, 'Click again to clear stash', typeof DEFAULT_CONFIRM_TIMEOUT_MS !== 'undefined' ? DEFAULT_CONFIRM_TIMEOUT_MS : 8000)) {
+            if (armConfirmButton(btn, CONFIRM_HTML, 'Click again to clear the crate')) {
                 return;
             }
         }
     } else if (typeof confirm === 'function') {
-        if (!confirm('Clear all stashed tracks?')) return;
+        if (!confirm('Clear all tracks from the crate?')) return;
     }
 
     saveStash([]);

@@ -1,22 +1,29 @@
-// ── Merge State ──
+// ── Merge ("Tape dub") State ──
 let mergeMode      = false;
 let mergeSelection = [];
 
+// The TAPE DUB bat switch (#btn-merge, a checkbox) calls this from onchange; other
+// code calls it to flip the mode. Either way the switch, lamp and DUB cap follow.
 function toggleMergeMode() {
-    mergeMode = !mergeMode;
+    const sw = document.getElementById('btn-merge');
+    const ev = typeof window !== 'undefined' ? window.event : null;
+    const fromSwitch = !!(sw && ev && ev.type === 'change' && ev.target === sw);
+    setMergeMode(fromSwitch ? sw.checked : !mergeMode);
+}
+
+function setMergeMode(on) {
+    mergeMode = !!on;
     if (!mergeMode) mergeSelection = [];
-    const mergeBtn = document.getElementById('btn-merge');
-    if (mergeMode) {
-        mergeBtn.className = 'px-4 py-2 text-[12px] uppercase font-bold tracking-wider border transition-all bg-[#2a2000] border-[#ffcc00] text-[#ffcc00]';
-        mergeBtn.innerHTML = '<i class="fas fa-times mr-1"></i>Cancel';
-        document.getElementById('merge-go').classList.remove('hidden');
-        document.body.classList.add('merge-active');
-    } else {
-        mergeBtn.className = 'px-4 py-2 text-[12px] uppercase font-bold tracking-wider border transition-all bg-[#0a0a0a] border-[#333] text-white';
-        mergeBtn.innerHTML = '<i class="fas fa-layer-group mr-1"></i>Merge';
-        document.getElementById('merge-go').classList.add('hidden');
-        document.body.classList.remove('merge-active');
-    }
+
+    const sw = document.getElementById('btn-merge');
+    if (sw) sw.checked = mergeMode;
+    const lamp = document.getElementById('dub-lamp');
+    if (lamp) lamp.classList.toggle('is-on', mergeMode);
+    const go = document.getElementById('merge-go');
+    if (go) go.classList.toggle('hidden', !mergeMode);
+    document.body.classList.toggle('merge-active', mergeMode);
+
+    if (mergeMode && typeof exitAllSelectionModes === 'function') exitAllSelectionModes();
     applyMergeHighlights();
 }
 
@@ -28,27 +35,18 @@ function toggleMergeSelect(ts) {
 
 function applyMergeHighlights() {
     document.querySelectorAll('[data-ts]').forEach(card => {
-        const ts         = card.getAttribute('data-ts');
-        const isSelected = mergeSelection.includes(ts);
-        if (mergeMode) {
-            card.style.cursor = 'pointer';
-            if (isSelected) {
-                card.style.borderColor = '#ffcc00';
-                card.style.boxShadow   = '0 0 12px rgba(255,204,0,0.3)';
-            } else {
-                card.style.borderColor = '#39ff14';
-                card.style.boxShadow   = '0 0 10px rgba(57,255,20,0.2)';
-            }
-        } else {
-            card.style.cursor      = '';
-            card.style.borderColor = '#39ff14';
-            card.style.boxShadow   = '0 0 10px rgba(57,255,20,0.2)';
-        }
+        const isSelected = mergeMode && mergeSelection.includes(card.getAttribute('data-ts'));
+        card.classList.toggle('is-dub-selected', isSelected);
+        card.classList.toggle('is-dub-candidate', mergeMode && !isSelected);
     });
 }
 
 function executeMerge() {
-    if (mergeSelection.length < 2) { alert('Select at least 2 playlists to merge.'); return; }
+    if (mergeSelection.length < 2) {
+        if (typeof showNotice === 'function') showNotice('Select at least 2 programs to dub together.', 4000);
+        else alert('Select at least 2 playlists to merge.');
+        return;
+    }
     let history    = getHistory();
     const selected = mergeSelection.map(ts => history.find(m => m._timestamp === ts)).filter(Boolean);
     const allTracks = [];
@@ -73,7 +71,16 @@ function executeMerge() {
     // Remove source playlists
     history = history.filter(m => !mergeSelection.includes(m._timestamp));
     saveHistory(history);
+    mergeSelection.forEach(ts => {
+        const card = document.querySelector(`[data-ts="${ts}"]`);
+        if (card) card.remove();
+    });
     renderNewMix(merged, true);
-    toggleMergeMode();
+    setMergeMode(false);
 }
 
+// Browsers may restore the switch's checked state on reload; start in step.
+document.addEventListener('DOMContentLoaded', () => {
+    const sw = document.getElementById('btn-merge');
+    if (sw) sw.checked = mergeMode;
+});

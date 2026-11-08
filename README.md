@@ -50,7 +50,7 @@
 
 ### Option A: Launch Instantly in Browser or Desktop
 1. Open the live app: **[SoundHunt on Vercel](https://sound-hunt.vercel.app)**.
-2. Click **Install App** in the top bar (or the ⊕ icon in your browser's address bar) to install SoundHunt as a standalone desktop app on **Windows, macOS, or Linux**.
+2. Press **INSTALL** on the receiver's top strip (or the ⊕ icon in your browser's address bar) to install SoundHunt as a standalone desktop app on **Windows, macOS, or Linux**.
 
 ---
 
@@ -69,7 +69,7 @@ Open **`http://localhost:8080`** in your browser.
 SoundHunt uses Google's Gemini API (`gemini-3.5-flash-lite`) to understand your musical prompts:
 1. Head over to [Google AI Studio](https://aistudio.google.com/apikey).
 2. Sign in and click **Create API Key**.
-3. Paste it into SoundHunt under **⚙ Settings** & you're ready to hunt!
+3. Press **REAR** to open the rear panel, plug the key into **Antenna in**, and you're ready to hunt!
 
 *(Keys are saved strictly in your local browser storage—never sent anywhere else).*
 

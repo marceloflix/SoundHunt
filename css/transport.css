@@ -213,6 +213,12 @@ body:has(#audio-player-bar.active) { padding-bottom: 150px; }
     #audio-track-title-wrapper { flex-basis: 100%; }
     .deck-time { display: none; }
     .deck-controls .fn-legend { display: none; }
+    .deck-controls .fn { grid-template-rows: var(--ctl-h); row-gap: 0; }
+    #audio-track-badges { gap: 6px; }
+    #audio-track-badges .fn-legend { display: none; }
     .deck-controls { gap: 8px; align-items: center; }
     #audio-play-pause.cap { --w: 56px; --h: 40px; }
 }
+
+/* Row play key while the preview is being cued */
+.track-play.is-loading { color: var(--amber-hot); }

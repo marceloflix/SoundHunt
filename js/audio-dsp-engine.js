@@ -666,16 +666,11 @@ class ConcurrentDspQueue {
         if (!prog) return;
 
         prog.done++;
-        const btn = document.getElementById(`btn-analyze-${ts}`);
-        if (btn) {
-            if (prog.done < prog.total) {
-                btn.innerHTML = `<i class="fas fa-spinner fa-spin text-[#39ff14]"></i><span>ANALYZING (${prog.done}/${prog.total})...</span>`;
-                btn.classList.add('analyzing-active');
-            } else {
-                btn.innerHTML = `<i class="fas fa-redo text-[#39ff14]"></i><span>BPM & KEY</span>`;
-                btn.classList.remove('analyzing-active');
-                this.playlistProgress.delete(ts);
-            }
+        if (prog.done < prog.total) {
+            setAnalyzeButtonState(ts, prog);
+        } else {
+            setAnalyzeButtonState(ts, null);
+            this.playlistProgress.delete(ts);
         }
     }
 
@@ -688,11 +683,7 @@ class ConcurrentDspQueue {
             done: 0
         });
 
-        const btn = document.getElementById(`btn-analyze-${ts}`);
-        if (btn) {
-            btn.innerHTML = `<i class="fas fa-spinner fa-spin text-[#39ff14]"></i><span>ANALYZING (0/${tracks.length})...</span>`;
-            btn.classList.add('analyzing-active');
-        }
+        setAnalyzeButtonState(ts, this.playlistProgress.get(ts));
 
         const uncachedItems = [];
 
@@ -731,31 +722,49 @@ class ConcurrentDspQueue {
 const dspQueue = new ConcurrentDspQueue(2);
 
 // ── UI Rendering Helpers ──
+// Lit tags: tempo in amber, key in its Camelot wheel colour.
 function getBadgeHTML(analysis) {
     if (!analysis) {
-        return `<span class="track-badge-loading inline-flex items-center gap-1 h-6 px-1.5 rounded-[4px] border border-[#1a4a1a] bg-[#051505] text-[#39ff14] text-[10px] font-mono font-bold select-none cursor-default"><i class="fas fa-spinner fa-spin text-[8.5px]"></i>DSP...</span>`;
+        return '<span class="tag tag-loading" title="Analysing BPM and key">···</span>';
     }
 
     if (analysis.unavailable || !analysis.bpm || !analysis.camelot) {
-        return `<span class="track-badge-empty inline-flex items-center justify-center h-6 px-1.5 text-[#555] font-mono text-[11px] select-none cursor-default">—</span>`;
+        return '<span class="tag tag-muted" title="BPM / key unavailable">—</span>';
     }
 
-    const { bpm, camelot, color } = analysis;
-    const safeColor = color || CAMELOT_COLORS[camelot] || '#39ff14';
+    const bpm = escapeHtml(analysis.bpm);
+    const camelot = escapeHtml(analysis.camelot);
+    const color = CAMELOT_COLORS[analysis.camelot] || analysis.color;
+    const keyStyle = /^#[0-9a-f]{3,8}$/i.test(color || '') ? ` style="--tag:${color}"` : '';
 
-    return `
-        <span class="track-badge-pill inline-flex items-center justify-center h-6 px-2 rounded-[4px] font-mono font-bold text-[11px] select-none whitespace-nowrap cursor-default transition-all"
-              style="color: ${safeColor}; border: 1px solid ${safeColor}; background-color: ${safeColor}14; box-shadow: 0 0 6px ${safeColor}33;"
-              title="${bpm} BPM &bull; Key ${camelot}">
-            ${bpm} &bull; ${camelot}
-        </span>
-    `;
+    return `<span class="tag" title="${bpm} BPM">${bpm}</span><span class="tag"${keyStyle} title="Key ${camelot}">${camelot}</span>`;
 }
 
 function renderTrackBadgeLoading(rowEl) {
     const badgeContainer = rowEl.querySelector('.track-badges');
     if (!badgeContainer) return;
-    badgeContainer.innerHTML = `<span class="track-badge-loading inline-flex items-center gap-1 h-6 px-1.5 rounded-[4px] border border-[#1a4a1a] bg-[#051505] text-[#39ff14] text-[10px] font-mono font-bold select-none cursor-default"><i class="fas fa-spinner fa-spin text-[8.5px]"></i>DSP...</span>`;
+    badgeContainer.innerHTML = getBadgeHTML(null);
+}
+
+// BPM · KEY cap on a mix card. `prog` = { done, total } while a run is going, null when
+// finished: spinner in the cap, blinking lamp and "n/m" in the legend while running;
+// the wave icon and a steady lamp (analysed) afterwards.
+function setAnalyzeButtonState(ts, prog) {
+    const btn = document.getElementById(`btn-analyze-${ts}`);
+    if (!btn) return;
+    const fn = btn.closest('.fn');
+    const lamp = fn ? fn.querySelector('.fn-legend .lamp') : null;
+    const text = fn ? fn.querySelector('.fn-legend .fn-text') : null;
+    const running = !!prog;
+
+    btn.classList.toggle('analyzing-active', running);
+    btn.innerHTML = running ? '<i class="fas fa-spinner fa-spin"></i>' : '<i class="fas fa-wave-square"></i>';
+    btn.setAttribute('aria-busy', running ? 'true' : 'false');
+    if (lamp) {
+        lamp.classList.add('is-on');
+        lamp.classList.toggle('is-blink', running);
+    }
+    if (text) text.textContent = running ? `${prog.done}/${prog.total}` : 'BPM · Key';
 }
 
 function renderTrackBadgeResult(rowEl, analysis) {

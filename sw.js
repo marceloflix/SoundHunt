@@ -4,12 +4,19 @@
  * Guarantees fresh updates when connected, full offline capability when offline.
  */
 
-const CACHE_NAME = 'soundhunt-v0.4.0';
+const CACHE_NAME = 'soundhunt-v0.5.0';
 const STATIC_ASSETS = [
     './',
     './index.html',
-    './css/styles.css',
+    './css/tokens.css',
+    './css/base.css',
+    './css/controls.css',
+    './css/receiver.css',
+    './css/feed.css',
+    './css/transport.css',
+    './css/panels.css',
     './manifest.json',
+    './js/controls.js',
     './js/storage.js',
     './js/stash.js',
     './js/settings.js',
@@ -26,8 +33,25 @@ const STATIC_ASSETS = [
     './assets/icon-512.png',
     './assets/icon-maskable-192.png',
     './assets/icon-maskable-512.png',
-    './assets/favicon-64.png'
+    './assets/favicon-64.png',
+    './assets/hifi/knob.webp',
+    './assets/hifi/screw.webp',
+    './assets/hifi/bezel.webp',
+    './assets/hifi/walnut.webp',
+    './assets/hifi/brushed.webp',
+    './assets/hifi/cap-wide.webp',
+    './assets/hifi/cap-sq.webp',
+    './assets/hifi/toggle-up.webp',
+    './assets/hifi/toggle-down.webp',
+    './assets/hifi/hunt-cap.webp',
+    './assets/hifi/hunt-bezel.webp',
+    './assets/hifi/turntable.webp',
+    './assets/hifi/tonearm.webp'
 ];
+
+// Third-party static hosts (fonts, icon font, 7-segment font) cached so the receiver
+// keeps its look offline.
+const CDN_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com', 'cdn.jsdelivr.net'];
 
 // URLs that must bypass the Service Worker cache completely (APIs & dynamic media)
 const BYPASS_DOMAINS = [
@@ -76,8 +100,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
         fetch(event.request)
             .then((networkResponse) => {
-                // If valid response from same-origin, update cache in background
-                if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+                // Cache same-origin files and the CDN fonts/icons in the background
+                const cacheable = networkResponse && networkResponse.status === 200 &&
+                    (networkResponse.type === 'basic' || (networkResponse.type === 'cors' && CDN_HOSTS.includes(url.hostname)));
+                if (cacheable) {
                     const responseClone = networkResponse.clone();
                     caches.open(CACHE_NAME).then((cache) => {
                         cache.put(event.request, responseClone);
@@ -87,7 +113,8 @@ self.addEventListener('fetch', (event) => {
             })
             .catch(() => {
                 // Offline fallback from cache
-                return caches.match(event.request).then((cachedResponse) => {
+                // ignoreSearch: precached files are stored without the ?v= query the page requests
+                return caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
                     if (cachedResponse) {
                         return cachedResponse;
                     }

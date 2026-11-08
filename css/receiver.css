@@ -328,6 +328,7 @@
 /* Lower half grid: [input / memory bank] [HUNT / memory list], shared legends row style. */
 .program {
     --huntW: 236px;
+    position: relative;
     display: grid;
     grid-template-columns: minmax(0, 1fr) var(--huntW);
     grid-template-areas:
@@ -354,9 +355,12 @@
     gap: 8px;
     padding: 4px;
     border-radius: 8px;
-    /* polished chrome bezel: sky reflection on top, horizon line, floor bounce */
-    background: linear-gradient(180deg, #fbfcfd 0%, #d3d6da 16%, #8b8f95 46%, #3c3f44 52%, #6e7278 70%, #c6c9ce 92%, #eef0f2 100%);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.6), 0 1px 2px rgba(0,0,0,0.6), 0 0 0 1px #050505, inset 0 1px 0 #fff;
+    /* satin steel bezel: muted reflection with the same brushed grain as the faceplate */
+    background:
+        var(--tex-brushed) 0 0 / 128px 128px,
+        linear-gradient(180deg, #b4b8be 0%, #8b8f95 22%, #5d6167 48%, #2f3236 54%, #4d5157 74%, #868a90 100%);
+    background-blend-mode: overlay, normal;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.6), 0 1px 2px rgba(0,0,0,0.6), 0 0 0 1px #050505, inset 0 1px 0 rgba(255,255,255,0.45);
 }
 .program-glass {
     position: relative;
@@ -392,15 +396,16 @@
     border: 0;
     outline: none;
     background: transparent;
-    color: var(--amber-hot);
+    /* typed text keeps exactly the look of the example prompts */
+    color: #b07b38;
     font-family: var(--font-display);
     font-size: 1.45rem;
     letter-spacing: 0.02em;
-    text-shadow: 0 0 10px var(--amber-glow), 0 0 24px rgba(255, 154, 31, 0.25);
-    caret-color: var(--amber-hot);
+    text-shadow: 0 0 6px rgba(255, 154, 31, 0.28);
+    caret-color: var(--amber);
     padding: 0;
 }
-#ai-vibe::placeholder { color: #8a6330; text-shadow: 0 0 6px rgba(255,154,31,0.2); opacity: 1; }
+#ai-vibe::placeholder { color: #b07b38; text-shadow: 0 0 6px rgba(255, 154, 31, 0.28); opacity: 1; }
 /* Inviting state: empty + not focused -> breathing glow on the glass */
 .program-window:has(#ai-vibe:placeholder-shown:not(:focus)) .program-glass { animation: glassBreathe 2.8s ease-in-out infinite; }
 @keyframes glassBreathe {
@@ -511,6 +516,8 @@
     border-bottom: 1px solid #1a1712;
 }
 .memory-list button:hover { color: var(--amber-hot); background: var(--amber-ghost); }
+.memory-empty { padding: 12px 14px; font-size: 0.8rem; }
+.preset.is-empty .cap { opacity: 0.55; }
 
 /* --------------------------------------------------------------- responsive */
 @media (max-width: 900px) {
@@ -576,7 +583,12 @@
         padding-bottom: 6px;
         margin: 0 -4px;
         padding-left: 4px;
+        padding-right: 28px;
+        scroll-snap-type: x proximity;
+        scroll-padding-left: 4px;
+        -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent);
+                mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent);
     }
     .preset-bank::-webkit-scrollbar { display: none; }
-    .preset { width: 112px; flex: none; }
+    .preset { width: 112px; flex: none; scroll-snap-align: start; }
 }

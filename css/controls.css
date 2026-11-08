@@ -495,8 +495,13 @@ textarea.field { resize: vertical; min-height: 64px; line-height: 1.4; }
     background: var(--img-toggle-up) center / contain no-repeat;
 }
 .bat input:checked ~ .bat-lever { background-image: var(--img-toggle-down); }
-.bat input:not(:checked) ~ .bat-legend.is-up,
-.bat input:checked ~ .bat-legend.is-down { color: #f0c27a; text-shadow: 0 0 5px rgba(255, 154, 31, 0.35); }
+/* .is-inverse: checked = lever UP (for "On/Off" settings where up means on) */
+.bat.is-inverse .bat-lever { background-image: var(--img-toggle-down); }
+.bat.is-inverse input:checked ~ .bat-lever { background-image: var(--img-toggle-up); }
+.bat:not(.is-inverse) input:not(:checked) ~ .bat-legend.is-up,
+.bat:not(.is-inverse) input:checked ~ .bat-legend.is-down,
+.bat.is-inverse input:checked ~ .bat-legend.is-up,
+.bat.is-inverse input:not(:checked) ~ .bat-legend.is-down { color: #f0c27a; text-shadow: 0 0 5px rgba(255, 154, 31, 0.35); }
 .bat input:focus-visible ~ .bat-lever { outline: 2px solid var(--amber); outline-offset: 2px; border-radius: 50%; }
 .bat-title { margin-bottom: 3px; }
 
@@ -607,3 +612,11 @@ textarea.field { resize: vertical; min-height: 64px; line-height: 1.4; }
     box-shadow: inset 0 3px 7px rgba(0,0,0,0.65), inset 0 0 0 1px rgba(0,0,0,0.7);
     pointer-events: none;
 }
+
+/* --------------------------------------------------------------- misc states */
+/* Armed (click-again-to-confirm) cap glyph, see CONFIRM_HTML in storage.js */
+.confirm-icon { color: #ff8a7a !important; text-shadow: 0 0 6px rgba(255, 77, 58, 0.8) !important; opacity: 1 !important; animation: lampBlink 0.9s steps(2, jump-none) infinite; }
+/* Newly added (dig-deeper) row flashes Marantz blue once */
+.track-row.is-flash { background: rgba(90, 184, 255, 0.18); transition: background 1.2s ease-out; }
+/* Unused preset key + screen */
+.lcd-empty .lcd-text { color: #4a3820; text-shadow: none; }

@@ -1,6 +1,30 @@
 // ── Dedicated AI Engine ──
 const GEMINI_MODEL = 'gemini-3.5-flash-lite';
 
+// ── HTML escaping (everything from Gemini or the user goes through these before innerHTML) ──
+function escapeHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+// For values placed inside a JS string literal within an inline handler attribute, e.g.
+// onclick="fn('${escapeJsAttr(x)}')": escape for JS first, then for the HTML attribute.
+function escapeJsAttr(value) {
+    const js = String(value == null ? '' : value).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n');
+    return escapeHtml(js);
+}
+
+// ── Shared UI snippets ──
+// Empty program log ("no signal" on the feed).
+function feedEmptyHTML(message) {
+    return `<div class="feed-empty"><span class="readout">NO SIGNAL</span><span class="engraved engraved-sm">${escapeHtml(message || 'Power on and tune in a vibe above to hunt tracks')}</span></div>`;
+}
+// What an armed (click-again-to-confirm) cap shows, see armConfirmButton().
+const CONFIRM_HTML = '<i class="fas fa-question confirm-icon"></i>';
+
 // ── Storage Keys ──
 const STORAGE_KEYS = {
     apiKey:     'megamix_api_key',
@@ -40,11 +64,46 @@ function savePrompt(prompt) {
     prompts.unshift(prompt);
     if (prompts.length > 10) prompts.length = 10;
     localStorage.setItem(STORAGE_KEYS.prompts, JSON.stringify(prompts));
-    populatePromptDatalist();
+    renderPresets();
 }
 
-function populatePromptDatalist() {
-    // kept as no-op for backward compat
+// ── MEMORY presets: the 5 most recent prompts on latching keys ──
+const PRESET_COUNT = 5;
+
+function renderPresets() {
+    const bank = document.getElementById('preset-bank');
+    if (!bank) return;
+    const prompts = getPromptHistory().slice(0, PRESET_COUNT);
+    let html = '';
+    for (let i = 0; i < PRESET_COUNT; i++) {
+        const p = prompts[i];
+        html += p
+            ? `<div class="preset"><span class="lcd"><span class="lcd-glass"><span class="lcd-text">${escapeHtml(p)}</span></span></span>` +
+              `<button type="button" class="cap" data-prompt="${escapeHtml(p)}" onclick="recallPreset(this)" aria-label="Recall: ${escapeHtml(p)}"><span class="cap-num">${i + 1}</span></button></div>`
+            : `<div class="preset is-empty"><span class="lcd lcd-empty"><span class="lcd-glass"><span class="lcd-text">— empty —</span></span></span>` +
+              `<button type="button" class="cap" disabled aria-label="Empty memory ${i + 1}"><span class="cap-num">${i + 1}</span></button></div>`;
+    }
+    bank.innerHTML = html;
+    if (window.SHControls) SHControls.initMarquee(bank);
+}
+
+function releasePresets() {
+    document.querySelectorAll('#preset-bank .cap.is-latched').forEach(c => c.classList.remove('is-latched'));
+}
+
+// Press a key: it latches and loads its program. Press the latched key again: it pops up
+// and the program window goes back to its idle examples.
+function recallPreset(btn) {
+    if (typeof isPowered === 'function' && !isPowered()) { if (typeof nudgePower === 'function') nudgePower(); return; }
+    const input = document.getElementById('ai-vibe');
+    if (btn.classList.contains('is-latched')) {
+        btn.classList.remove('is-latched');
+        input.value = '';
+        return;
+    }
+    releasePresets();
+    btn.classList.add('is-latched');
+    input.value = btn.dataset.prompt;
 }
 
 function togglePromptHistory() {
@@ -53,25 +112,19 @@ function togglePromptHistory() {
         dropdown.classList.add('hidden');
         return;
     }
+    if (typeof isPowered === 'function' && !isPowered()) { if (typeof nudgePower === 'function') nudgePower(); return; }
     const history = getPromptHistory();
-    if (history.length === 0) {
-        dropdown.innerHTML = '<div class="px-3 py-2 text-[#555] text-[11px] italic">No prompt history yet.</div>';
-    } else {
-        dropdown.innerHTML = history.map(p =>
-            `<div class="prompt-history-item px-3 py-2 text-[#ccc] text-[12px] cursor-pointer hover:bg-[#1a4a1a] hover:text-[#39ff14] transition-colors border-b border-[#111] last:border-0" onclick="selectPromptHistory(this)" data-prompt="${p.replace(/"/g, '&quot;')}">${p}</div>`
-        ).join('');
-    }
+    dropdown.innerHTML = history.length === 0
+        ? '<div class="memory-empty readout">NO PROGRAMS IN MEMORY YET</div>'
+        : history.map(p => `<button type="button" onclick="selectPromptHistory(this)" data-prompt="${escapeHtml(p)}">${escapeHtml(p)}</button>`).join('');
     dropdown.classList.remove('hidden');
 }
 
 function selectPromptHistory(el) {
+    releasePresets();
     document.getElementById('ai-vibe').value = el.dataset.prompt;
     document.getElementById('prompt-history-dropdown').classList.add('hidden');
     document.getElementById('ai-vibe').focus();
-}
-
-function updatePromptSuggestions() {
-    // no-op, replaced by manual dropdown
 }
 
 // Close history dropdown when clicking outside
@@ -238,8 +291,7 @@ if (typeof document !== 'undefined') {
 
 function clearHistory(btn) {
     if (btn) {
-        const badge = '<span class="text-[10px] text-[#ff3333] font-bold uppercase px-1 pointer-events-none">Clear all?</span>';
-        if (armConfirmButton(btn, badge, 'Click again to confirm clearing all playlists', DEFAULT_CONFIRM_TIMEOUT_MS)) {
+        if (armConfirmButton(btn, CONFIRM_HTML, 'Click again to confirm clearing all playlists', DEFAULT_CONFIRM_TIMEOUT_MS)) {
             return;
         }
     } else if (typeof confirm === 'function') {
@@ -249,37 +301,25 @@ function clearHistory(btn) {
     localStorage.removeItem(STORAGE_KEYS.history);
     const container = document.getElementById('mixes-container');
     if (container) {
-        container.innerHTML = '<div class="text-center text-[#555] text-[11px] py-8 uppercase tracking-widest"><i class="fas fa-compact-disc mr-2"></i>No playlists yet — enter a prompt above to hunt tracks.</div>';
+        container.innerHTML = feedEmptyHTML();
     }
     updateHistoryControls();
 }
 
-// ── Global Visual Toast Feedback ──
+// ── Global toast: a lit message strip that drops from the top edge ──
 function showAppToast(msg, type = 'success', duration = 3500) {
     let toast = document.getElementById('soundhunt-global-toast');
     if (!toast) {
         toast = document.createElement('div');
         toast.id = 'soundhunt-global-toast';
-        toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[10000] px-4 py-2 bg-[#051505] border border-[#1a7b1a] text-[#39ff14] text-[11px] font-bold uppercase tracking-wider rounded shadow-[0_0_15px_rgba(0,0,0,0.8)] flex items-center gap-2 transition-all duration-300 opacity-0 pointer-events-none translate-y-[-10px] select-none';
+        toast.setAttribute('role', 'status');
         document.body.appendChild(toast);
     }
-    const icon = type === 'success' ? 'fa-check' : (type === 'error' ? 'fa-exclamation-triangle' : 'fa-info-circle');
-    const borderCol = type === 'error' ? '#ff3333' : '#1a7b1a';
-    const textCol = type === 'error' ? '#ff4444' : '#39ff14';
-    const bgCol = type === 'error' ? '#1f0505' : '#051505';
-
-    toast.style.borderColor = borderCol;
-    toast.style.color = textCol;
-    toast.style.backgroundColor = bgCol;
-    toast.innerHTML = `<i class="fas ${icon} text-[11px]"></i><span>${msg}</span>`;
-
-    toast.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-[-10px]');
-    toast.classList.add('opacity-100', 'translate-y-0');
-
+    const lamp = type === 'error' ? 'lamp-red' : (type === 'success' ? 'lamp-green' : '');
+    toast.classList.toggle('is-error', type === 'error');
+    toast.classList.toggle('is-success', type === 'success');
+    toast.innerHTML = `<span class="lamp ${lamp} is-on"></span><span class="readout">${escapeHtml(msg)}</span>`;
+    toast.classList.add('is-visible');
     if (toast._timer) clearTimeout(toast._timer);
-    toast._timer = setTimeout(() => {
-        toast.classList.remove('opacity-100', 'translate-y-0');
-        toast.classList.add('opacity-0', 'pointer-events-none', 'translate-y-[-10px]');
-    }, duration);
+    toast._timer = setTimeout(() => toast.classList.remove('is-visible'), duration);
 }
-

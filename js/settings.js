@@ -1,19 +1,57 @@
-// ── Settings Modal ──
+// ── Rear panel (Settings modal) ──
+let textSizeKnob = null;   // SHControls knob on #knob-textsize, built on first open
+let saveBtnTimer = null;
+
+function initTextSizeKnob() {
+    if (textSizeKnob) return textSizeKnob;
+    const wrap = document.getElementById('knob-textsize');
+    if (!wrap || !window.SHControls) return null;
+    textSizeKnob = SHControls.initKnob(wrap, value => {
+        const select = document.getElementById('text-size-select');
+        if (select) select.value = value;
+    });
+    return textSizeKnob;
+}
+
+// Shows a status line under a rear-panel section. state: ok | warn | error | null (hide).
+function setRearStatus(el, state, html) {
+    if (!el) return;
+    el.classList.remove('is-ok', 'is-warn', 'is-error');
+    if (!state) {
+        el.classList.add('hidden');
+        el.innerHTML = '';
+        return;
+    }
+    el.classList.add('is-' + state);
+    el.innerHTML = html;
+    el.classList.remove('hidden');
+}
+
+function setSaveBtnIcon(btn, icon, spin) {
+    if (!btn) return;
+    btn.innerHTML = `<i class="fas ${icon}${spin ? ' fa-spin' : ''}"></i>`;
+}
+
 function openSettings() {
     const key = getApiKey();
     document.getElementById('api-key-input').value = key;
-    const statusEl = document.getElementById('api-key-status');
-    if (statusEl) statusEl.classList.add('hidden');
-
-    const clearStatusEl = document.getElementById('clear-data-status');
-    if (clearStatusEl) clearStatusEl.classList.add('hidden');
+    setRearStatus(document.getElementById('api-key-status'), null);
+    setRearStatus(document.getElementById('clear-data-status'), null);
 
     const firstTimeNotice = document.getElementById('first-time-api-notice');
     if (firstTimeNotice && key) {
         firstTimeNotice.classList.add('hidden');
     }
-    
-    document.getElementById('text-size-select').value = getTextSize();
+
+    // Safety cover always starts closed
+    const guard = document.getElementById('clear-guard');
+    if (guard) guard.classList.remove('is-open');
+
+    const textSize = getTextSize();
+    document.getElementById('text-size-select').value = textSize;
+    const knob = initTextSizeKnob();
+    if (knob) knob.set(textSize, true);
+
     document.getElementById('auto-scroll-toggle').checked = getAutoScroll();
     document.getElementById('prompt-persona-input').value = getPromptPersona();
     document.getElementById('prompt-constraints-input').value = getPromptConstraints();
@@ -23,12 +61,9 @@ function openSettings() {
 }
 
 function resetStructuredPrompt(btn) {
-    if (btn) {
-        const badge = '<span class="text-[9px] font-extrabold uppercase text-[#ff3333] bg-[#220000] border border-[#ff3333] px-1.5 py-[2px] rounded shadow-[0_0_6px_rgba(255,51,51,0.6)] cursor-pointer select-none pointer-events-none">Reset?</span>';
-        if (typeof armConfirmButton === 'function') {
-            if (armConfirmButton(btn, badge, 'Click again to confirm reset', typeof DEFAULT_CONFIRM_TIMEOUT_MS !== 'undefined' ? DEFAULT_CONFIRM_TIMEOUT_MS : 8000)) {
-                return;
-            }
+    if (btn && typeof armConfirmButton === 'function') {
+        if (armConfirmButton(btn, CONFIRM_HTML, 'Click again to restore the default prompt')) {
+            return;
         }
     }
 
@@ -44,6 +79,8 @@ function applyTextSize(sizeClass) {
 
 function closeSettings() {
     document.getElementById('settings-modal').classList.add('hidden');
+    const guard = document.getElementById('clear-guard');
+    if (guard) guard.classList.remove('is-open');
     const mainErrorDiv = document.getElementById('ai-error');
     if (mainErrorDiv && mainErrorDiv.textContent.includes('API KEY REQUIRED') && getApiKey()) {
         mainErrorDiv.classList.add('hidden');
@@ -52,54 +89,46 @@ function closeSettings() {
 
 async function saveSettings() {
     const saveBtn = document.getElementById('settings-save-btn');
-    const originalBtnHtml = saveBtn ? saveBtn.innerHTML : '<i class="fas fa-save mr-1"></i> Save';
-    
+    if (saveBtn && saveBtn.disabled) return;
+    clearTimeout(saveBtnTimer);
+
     if (saveBtn) {
         saveBtn.disabled = true;
-        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Validating...';
-        saveBtn.style.opacity = '0.7';
-        saveBtn.style.cursor = 'wait';
+        saveBtn.setAttribute('aria-busy', 'true');
+        setSaveBtnIcon(saveBtn, 'fa-spinner', true);
     }
+    const restoreSaveBtn = () => {
+        if (!saveBtn) return;
+        saveBtn.disabled = false;
+        saveBtn.removeAttribute('aria-busy');
+        setSaveBtnIcon(saveBtn, 'fa-check');
+    };
 
-    const key      = document.getElementById('api-key-input').value.trim();
-    const statusEl = document.getElementById('api-key-status');
-    const textSize = document.getElementById('text-size-select').value;
+    const key        = document.getElementById('api-key-input').value.trim();
+    const statusEl   = document.getElementById('api-key-status');
+    const textSize   = document.getElementById('text-size-select').value;
     const autoScroll = document.getElementById('auto-scroll-toggle').checked;
-    const persona = document.getElementById('prompt-persona-input').value;
+    const persona    = document.getElementById('prompt-persona-input').value;
     const constraints = document.getElementById('prompt-constraints-input').value;
-    const explicit = document.getElementById('prompt-explicit-input').value;
+    const explicit   = document.getElementById('prompt-explicit-input').value;
 
     let geminiValid = true;
 
     // Show validating state immediately
-    if (key && statusEl) {
-        statusEl.className = 'text-[10px] mt-1 font-bold uppercase tracking-wider text-[#ffcc00]';
-        statusEl.textContent = 'VALIDATING KEY...';
-        statusEl.classList.remove('hidden');
-    } else if (statusEl) {
-        statusEl.classList.add('hidden');
-    }
+    if (key) setRearStatus(statusEl, 'warn', '<i class="fas fa-satellite-dish"></i> Checking signal…');
+    else setRearStatus(statusEl, null);
 
     if (key) {
         try {
-            const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}?key=${key}`);
+            const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}?key=${encodeURIComponent(key)}`);
             if (r.ok) {
-                if (statusEl) {
-                    statusEl.className = 'text-[10px] mt-1 font-bold uppercase tracking-wider text-[#39ff14]';
-                    statusEl.textContent = '✓ KEY VALID';
-                }
+                setRearStatus(statusEl, 'ok', '<i class="fas fa-check"></i> Signal OK · key valid');
             } else {
-                if (statusEl) {
-                    statusEl.className = 'text-[10px] mt-1 font-bold uppercase tracking-wider text-[#ff3333]';
-                    statusEl.textContent = '✗ INVALID KEY — check and try again';
-                }
+                setRearStatus(statusEl, 'error', '<i class="fas fa-xmark"></i> No signal · invalid key, check and try again');
                 geminiValid = false;
             }
         } catch {
-            if (statusEl) {
-                statusEl.className = 'text-[10px] mt-1 font-bold uppercase tracking-wider text-[#ff9900]';
-                statusEl.textContent = '⚠ NETWORK ERROR — saved anyway';
-            }
+            setRearStatus(statusEl, 'warn', '<i class="fas fa-triangle-exclamation"></i> Network error · saved anyway');
         }
     }
 
@@ -108,19 +137,17 @@ async function saveSettings() {
         const geminiInput = document.getElementById('api-key-input');
         if (geminiInput) geminiInput.value = '';
         localStorage.removeItem(STORAGE_KEYS.apiKey);
-
         if (saveBtn) {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = originalBtnHtml;
-            saveBtn.style.opacity = '1';
-            saveBtn.style.cursor = 'pointer';
+            setSaveBtnIcon(saveBtn, 'fa-xmark');
+            saveBtnTimer = setTimeout(restoreSaveBtn, 1200);
         }
         return;
     }
 
-    // Success indicator on button
+    // Success indicator on the cap
     if (saveBtn) {
-        saveBtn.innerHTML = '<i class="fas fa-check mr-1"></i> Saved!';
+        setSaveBtnIcon(saveBtn, 'fa-check-double');
+        saveBtn.classList.add('is-latched');
     }
 
     // Clear any previous "API KEY REQUIRED" error on main screen
@@ -143,25 +170,24 @@ async function saveSettings() {
     localStorage.setItem(STORAGE_KEYS.promptExplicit, explicit);
     applyTextSize(textSize);
 
-    setTimeout(() => {
+    saveBtnTimer = setTimeout(() => {
         closeSettings();
-        if (saveBtn) {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = originalBtnHtml;
-            saveBtn.style.opacity = '1';
-            saveBtn.style.cursor = 'pointer';
-        }
+        restoreSaveBtn();
+        if (saveBtn) saveBtn.classList.remove('is-latched');
     }, 600);
 }
 
 // ── Clear Application Data & Cache (Preserves Gemini API Key) ──
+// Behind a flip cover: the first press on a closed guard just lifts the cover.
 function clearApplicationData(btn) {
-    if (btn) {
-        const badge = '<span class="text-[9px] font-extrabold uppercase text-[#ff3333] bg-[#220000] border border-[#ff3333] px-1.5 py-[2px] rounded shadow-[0_0_6px_rgba(255,51,51,0.6)] cursor-pointer select-none pointer-events-none">Clear?</span>';
-        if (typeof armConfirmButton === 'function') {
-            if (armConfirmButton(btn, badge, 'Click again to confirm clearing cached data', typeof DEFAULT_CONFIRM_TIMEOUT_MS !== 'undefined' ? DEFAULT_CONFIRM_TIMEOUT_MS : 8000)) {
-                return;
-            }
+    const guard = document.getElementById('clear-guard');
+    if (guard && !guard.classList.contains('is-open')) {
+        guard.classList.add('is-open');
+        return;
+    }
+    if (btn && typeof armConfirmButton === 'function') {
+        if (armConfirmButton(btn, CONFIRM_HTML, 'Click again to confirm clearing cached data')) {
+            return;
         }
     }
 
@@ -192,7 +218,7 @@ function clearApplicationData(btn) {
         inMemoryDspCache.clear();
     }
 
-    // 3. Clear Stash drawer
+    // 3. Clear the crate
     if (typeof saveStash === 'function') {
         saveStash([]);
     }
@@ -208,7 +234,7 @@ function clearApplicationData(btn) {
     // 5. Reset UI feed to empty state
     const container = document.getElementById('mixes-container');
     if (container) {
-        container.innerHTML = '<div class="text-center text-[#555] text-[11px] py-8 uppercase tracking-widest"><i class="fas fa-compact-disc mr-2"></i>No playlists yet — enter a prompt above to hunt tracks.</div>';
+        container.innerHTML = feedEmptyHTML();
     }
     if (typeof updateHistoryControls === 'function') {
         updateHistoryControls();
@@ -218,16 +244,11 @@ function clearApplicationData(btn) {
     const promptDropdown = document.getElementById('prompt-history-dropdown');
     if (promptDropdown) promptDropdown.innerHTML = '';
 
-    // 7. Immediate visual feedback (Inline status + Toast notification)
+    // 7. Close the cover again and confirm (inline status + toast)
+    if (guard) guard.classList.remove('is-open');
     const statusEl = document.getElementById('clear-data-status');
-    if (statusEl) {
-        statusEl.className = 'text-[10px] mt-1.5 font-bold uppercase tracking-wider text-[#39ff14]';
-        statusEl.innerHTML = '<i class="fas fa-check mr-1"></i> Cached data cleared. API key preserved!';
-        statusEl.classList.remove('hidden');
-        setTimeout(() => {
-            if (statusEl) statusEl.classList.add('hidden');
-        }, 5000);
-    }
+    setRearStatus(statusEl, 'ok', '<i class="fas fa-check"></i> Cached data cleared · API key preserved');
+    setTimeout(() => setRearStatus(statusEl, null), 5000);
 
     if (typeof showAppToast === 'function') {
         showAppToast('Cached data cleared. API key preserved.', 'success');

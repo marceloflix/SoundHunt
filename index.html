@@ -3,13 +3,13 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description"
         content="SoundHunt — Natural-language music discovery and track hunting engine. Dig for hidden gems, deep cuts, and authentic music you don't already own.">
     <title>SoundHunt — Music Discovery & Track Hunting</title>
 
     <!-- PWA & Mobile Meta Tags -->
-    <meta name="theme-color" content="#0a0a0a">
+    <meta name="theme-color" content="#1b1c1e">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -19,514 +19,412 @@
     <link rel="alternate icon" type="image/png" href="assets/favicon-64.png">
     <link rel="apple-touch-icon" href="assets/icon-192.png">
 
-    <!-- Tailwind (utility classes used throughout) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome icons -->
+    <!-- Fonts & icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Michroma&family=Playfair+Display:ital,wght@1,500&family=Share+Tech+Mono&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Custom styles -->
-    <link rel="stylesheet" href="css/styles.css?v=0.3.6">
+
+    <!-- SH design kit -->
+    <link rel="stylesheet" href="css/tokens.css?v=0.5.0">
+    <link rel="stylesheet" href="css/base.css?v=0.5.0">
+    <link rel="stylesheet" href="css/controls.css?v=0.5.0">
+    <link rel="stylesheet" href="css/receiver.css?v=0.5.0">
+    <link rel="stylesheet" href="css/feed.css?v=0.5.0">
+    <link rel="stylesheet" href="css/transport.css?v=0.5.0">
+    <link rel="stylesheet" href="css/panels.css?v=0.5.0">
 </head>
 
-<body class="text-size-small">
+<body class="text-size-small is-off">
 
-    <!-- ── Stash Drawer Overlay & Drawer ── -->
+    <!-- ══════════════════════ CRATE (stash drawer) ══════════════════════ -->
     <div id="stash-overlay" class="hidden" onclick="closeStashDrawer()"></div>
-    <div id="stash-drawer" class="translate-x-full">
-        <div
-            class="p-4 bg-gradient-to-b from-[#1a1500] to-[#0a0a0a] border-b border-[#332500] flex items-center justify-between">
-            <div class="flex items-center gap-2">
-                <i class="fas fa-star text-[#ffcc00] text-sm"></i>
-                <span class="text-white font-bold text-sm tracking-wider uppercase">Download Stash</span>
+    <aside id="stash-drawer" aria-label="Crate">
+        <div class="crate-head">
+            <div>
+                <div class="crate-title">Crate</div>
+                <div class="engraved engraved-sm">Stashed tracks · one tap to Monochrome</div>
             </div>
-            <button onclick="closeStashDrawer()"
-                class="text-[#888] hover:text-[#ff3333] transition-colors px-2 py-1 text-xs font-bold cursor-pointer"
-                title="Close Drawer (Esc)">
-                <i class="fas fa-times"></i>
-            </button>
+            <button type="button" class="cap cap-sq" onclick="closeStashDrawer()" aria-label="Close crate"><i class="fas fa-xmark"></i></button>
         </div>
-        <div id="stash-content" class="p-4 flex-1 overflow-y-auto">
-            <!-- Populated by js/stash.js -->
-        </div>
-        <div class="p-3 bg-[#0a0a0a] border-t border-[#222] text-center">
-            <p class="text-[9.5px] text-[#666]">Tracks saved here link directly to <span
-                    class="text-[#bb86fc]">Monochrome</span> for 1-click downloads.</p>
+        <div id="stash-content" class="crate-content"></div>
+        <div class="crate-foot engraved engraved-sm">Stash survives reloads · stored in this browser only</div>
+    </aside>
+
+    <main class="chassis">
+
+        <!-- ══════════════════════ RECEIVER ══════════════════════ -->
+        <section class="cabinet" aria-label="Receiver">
+            <div class="cabinet-cheek"></div>
+            <div class="faceplate receiver has-screws">
+                <header class="rx-top">
+                    <div class="rx-brand">
+                        <h1 class="rx-logo">SoundHunt</h1>
+                        <div class="rx-model">
+                            <span class="badge">v0.1</span>
+                            <span class="rx-script">Stereophonic Discovery Receiver</span>
+                        </div>
+                    </div>
+                    <nav class="rx-panel">
+                        <div class="fn">
+                            <span class="fn-legend"><span class="lamp lamp-red is-on is-standby" id="power-led"></span>Power</span>
+                            <button type="button" class="cap" id="power-btn" aria-pressed="false" aria-label="Power"><i class="fas fa-power-off"></i></button>
+                        </div>
+                        <div class="fn">
+                            <span class="fn-legend">Saved</span>
+                            <span class="seg" data-ghost="88" id="stash-count-badge">00</span>
+                        </div>
+                        <div class="fn">
+                            <span class="fn-legend">Crate</span>
+                            <button type="button" class="cap" onclick="openStashDrawer()" aria-label="Open crate"><i class="fas fa-box-archive"></i></button>
+                        </div>
+                        <div class="fn">
+                            <span class="fn-legend">Meters</span>
+                            <button type="button" class="cap" onclick="openStats()" aria-label="Stats"><i class="fas fa-gauge-high"></i></button>
+                        </div>
+                        <div class="fn">
+                            <span class="fn-legend">Rear</span>
+                            <button type="button" class="cap" onclick="openSettings()" aria-label="Settings"><i class="fas fa-sliders"></i></button>
+                        </div>
+                        <div class="fn hidden" id="pwa-install-btn">
+                            <span class="fn-legend">Install</span>
+                            <button type="button" class="cap" onclick="triggerPwaInstall()" aria-label="Install app"><i class="fas fa-download"></i></button>
+                        </div>
+                    </nav>
+                </header>
+
+                <div class="rx-rule"></div>
+
+                <div class="rx-grid">
+                    <div class="glass-band">
+                        <div class="glass-meters">
+                            <div class="meter" data-meter="vu" data-title="LEFT"></div>
+                            <div class="meter" data-meter="vu" data-title="RIGHT"></div>
+                        </div>
+                        <div class="dial" id="dial" style="--needle-pos:0.5">
+                            <div class="dial-track">
+                                <div class="dial-zones"><span data-zone="deep-cuts">Underground</span><span data-zone="balanced">Balanced</span><span data-zone="mainstream">Mainstream</span></div>
+                                <div class="dial-band"><i data-zone="deep-cuts"></i><i data-zone="balanced"></i><i data-zone="mainstream"></i></div>
+                                <div class="dial-scale"><span>0</span><span>10</span><span>20</span><span>30</span><span>40</span><span>50</span><span>60</span><span>70</span><span>80</span><span>90</span><span>100</span></div>
+                                <div class="dial-ticks"></div>
+                                <div class="dial-ends"><span>◂ Rare finds</span><span>Popularity %</span><span>Big hits ▸</span></div>
+                            </div>
+                            <div class="dial-status">
+                                <span class="dial-msg" id="dial-msg" role="status" aria-live="polite"></span>
+                            </div>
+                            <div class="dial-print" aria-hidden="true"><b>AI</b> · Stereo discovery</div>
+                            <div class="dial-glow" aria-hidden="true"></div>
+                            <div class="dial-needle" aria-hidden="true"></div>
+                        </div>
+                    </div>
+
+                    <div class="rx-cell rx-cell-a">
+                        <div class="knob-wrap" id="knob-tracks" data-values="10,20,30,40" data-angles="-75,-25,25,75" data-value="10" style="--size:62px">
+                            <div class="knob-ticks"></div>
+                            <button type="button" class="knob" aria-label="Tracks"></button>
+                            <button type="button" class="knob-mark" data-value="10" style="--a:-75deg">10</button>
+                            <button type="button" class="knob-mark" data-value="20" style="--a:-25deg">20</button>
+                            <button type="button" class="knob-mark" data-value="30" style="--a:25deg">30</button>
+                            <button type="button" class="knob-mark" data-value="40" style="--a:75deg">40</button>
+                            <span class="knob-title engraved engraved-sm">Tracks</span>
+                        </div>
+                    </div>
+                    <div class="rx-cell rx-cell-b">
+                        <div class="flywheel-row">
+                            <span class="fw-side engraved engraved-sm"><span class="arrow">◂</span> Rarer</span>
+                            <div class="fw-center">
+                                <span class="engraved engraved-sm">Tuning · depth</span>
+                                <div class="flywheel" id="flywheel"><div class="flywheel-edge"></div></div>
+                            </div>
+                            <span class="fw-side engraved engraved-sm"><span class="legend-more">More </span>popular <span class="arrow">▸</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rx-rule"></div>
+
+                <div class="program">
+                    <div class="program-legend">
+                        <span class="engraved engraved-sm">Program input<span class="legend-more"> — type a vibe, mood, era or scene</span></span>
+                    </div>
+                    <div class="program-window">
+                        <div class="program-glass">
+                            <span class="prompt-glyph">▸</span>
+                            <input id="ai-vibe" type="text" autocomplete="off" spellcheck="false" aria-label="Describe the music you want" placeholder="" disabled>
+                        </div>
+                    </div>
+                    <button type="button" class="hunt-btn" id="generate-btn" onclick="generateMix()" aria-label="Hunt tracks">
+                        <span class="hunt-cap">
+                            <span class="hunt-lens">HUNT</span>
+                            <span class="hunt-sub">Search · Enter</span>
+                        </span>
+                    </button>
+
+                    <div class="program-legend memory-legend">
+                        <span class="engraved engraved-sm">Memory<span class="legend-more"> · press a key to recall</span></span>
+                    </div>
+                    <div class="preset-bank" id="preset-bank"></div>
+                    <div class="fn memory-all">
+                        <span class="fn-legend">All memory</span>
+                        <button type="button" class="cap" id="prompt-history-btn" onclick="togglePromptHistory()" aria-label="Prompt history"><i class="fas fa-list-ul"></i></button>
+                    </div>
+                    <div id="prompt-history-dropdown" class="memory-list hidden"></div>
+                </div>
+            </div>
+            <div class="cabinet-cheek"></div>
+        </section>
+
+        <!-- ══════════════════════ PROGRAM CONTROL STRIP ══════════════════════ -->
+        <section class="unit strip hidden" id="history-controls" aria-label="Program controls">
+            <div class="group">
+                <span class="bracket engraved engraved-sm">Display</span>
+                <div class="group-row">
+                    <label class="bat">
+                        <span class="bat-legend bat-title engraved">Source</span>
+                        <input type="checkbox" id="filter-toggle" onchange="setFilter(this.checked ? 'favorites' : 'all')">
+                        <span class="bat-legend is-up">All</span>
+                        <span class="bat-lever"></span>
+                        <span class="bat-legend is-down">Fav ★</span>
+                    </label>
+                    <label class="bat">
+                        <span class="bat-legend bat-title engraved">View</span>
+                        <input type="checkbox" id="view-toggle" onchange="setView(this.checked ? 'compact' : 'normal')">
+                        <span class="bat-legend is-up">Full</span>
+                        <span class="bat-lever"></span>
+                        <span class="bat-legend is-down">Compact</span>
+                    </label>
+                </div>
+            </div>
+            <div class="strip-group strip-seek">
+                <span class="engraved engraved-sm">Seek · search your programs</span>
+                <input class="field" type="search" id="history-search" placeholder="track, artist, genre…" oninput="filterHistory()">
+            </div>
+            <div class="strip-end">
+                <div class="strip-group strip-dub">
+                    <label class="bat">
+                        <span class="bat-legend bat-title engraved">Tape dub</span>
+                        <input type="checkbox" id="btn-merge" onchange="toggleMergeMode()">
+                        <span class="bat-legend is-up">Off</span>
+                        <span class="bat-lever"></span>
+                        <span class="bat-legend is-down">Merge</span>
+                    </label>
+                    <span class="lamp lamp-yellow" id="dub-lamp"></span>
+                </div>
+                <div class="fn hidden" id="merge-go">
+                    <span class="fn-legend">Dub</span>
+                    <button type="button" class="cap" onclick="executeMerge()" aria-label="Merge selected"><i class="fas fa-layer-group"></i></button>
+                </div>
+                <div class="fn">
+                    <span class="fn-legend">Reset</span>
+                    <button type="button" class="cap cap-sq cap-danger" onclick="clearHistory(this)" aria-label="Clear all programs"><i class="fas fa-power-off"></i></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════════════════ PROGRAM LOG (mix units) ══════════════════════ -->
+        <div id="mixes-container"></div>
+
+        <footer class="footer"><span class="engraved engraved-sm">SoundHunt · hunt down songs you didn't know you needed · made by MFlix</span></footer>
+    </main>
+
+    <!-- ══════════════════════ TURNTABLE (preview player) ══════════════════════ -->
+    <div id="audio-player-bar">
+        <div class="transport">
+            <div class="cabinet-cheek"></div>
+            <div class="faceplate transport-face">
+                <div class="deck" id="deck">
+                    <div class="deck-platter"></div>
+                    <div class="deck-strobe"></div>
+                    <div class="deck-label"><img id="deck-art" alt=""></div>
+                    <div class="deck-spindle"></div>
+                    <div class="deck-arm"></div>
+                    <span class="deck-hint">Drag to scratch</span>
+                </div>
+                <div class="deck-info">
+                    <div class="deck-plate">
+                        <div id="audio-track-title-wrapper"><span id="audio-track-title">—</span></div>
+                        <div id="audio-track-badges"></div>
+                    </div>
+                    <div id="audio-progress"><div id="audio-progress-fill"></div></div>
+                    <div class="deck-plate"><span class="engraved engraved-sm">Preview · 33⅓</span><span class="readout deck-time" id="deck-time">0:00 / 0:30</span></div>
+                </div>
+                <div class="deck-controls">
+                    <div class="fn"><span class="fn-legend"><span class="lamp" id="deck-lamp"></span>Start · Stop</span><button type="button" class="cap" id="audio-play-pause" onclick="toggleAudioPlayback()" aria-label="Play or pause"><i class="fas fa-play"></i></button></div>
+                    <div class="fn"><span class="fn-legend">Off</span><button type="button" class="cap cap-sq" onclick="closeAudioPlayer()" aria-label="Close player"><i class="fas fa-xmark"></i></button></div>
+                </div>
+            </div>
+            <div class="cabinet-cheek"></div>
         </div>
     </div>
 
-    <div class="container-main">
-
-        <!-- ── Header ── -->
-        <div
-            class="header-bg p-4 md:p-6 flex flex-col md:flex-row justify-between items-center text-center md:text-left gap-2">
-            <div class="flex items-center justify-center md:justify-start w-full">
-                <div class="logo-diamond-blend hidden md:block"></div>
-                <div class="leading-none">
-                    <span class="text-2xl md:text-3xl font-bold text-white tracking-tight">Sound<span
-                            class="text-[#39ff14]">Hunt</span></span>
-                    <span class="text-[10px] text-[#888] block tracking-wider uppercase font-semibold mt-0.5">Music
-                        Discovery & Track Hunting</span>
-                </div>
+    <!-- ══════════════════════ REAR PANEL (settings) ══════════════════════ -->
+    <div id="settings-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeSettings()">
+        <div class="modal-box rear-panel" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+            <span class="corner-screw tl"></span><span class="corner-screw tr"></span>
+            <div class="modal-header">
+                <h2 id="settings-modal-title">Rear panel · Connections</h2>
+                <button type="button" class="cap cap-sq modal-close" onclick="closeSettings()" aria-label="Close"><i class="fas fa-xmark"></i></button>
             </div>
-            <div class="flex items-center gap-2 shrink-0">
-                <button id="pwa-install-btn" onclick="triggerPwaInstall()" title="Install SoundHunt App"
-                    aria-label="Install SoundHunt App"
-                    class="hidden text-[#39ff14] hover:text-white transition-all text-xs px-2.5 py-1.5 border border-[#1a4a1a] hover:border-[#39ff14] bg-[#051505] flex items-center gap-1.5 cursor-pointer shadow-[0_0_8px_rgba(57,255,20,0.15)]">
-                    <i class="fas fa-download text-[11px]"></i>
-                    <span class="font-bold uppercase tracking-wider text-[10px] hidden sm:inline">Install</span>
-                </button>
-                <button onclick="openStashDrawer()" title="Download Stash" aria-label="Open download stash"
-                    class="text-[#ffcc00] hover:text-white transition-all text-xs px-2.5 py-1.5 border border-[#443300] hover:border-[#ffcc00] bg-[#110d00] flex items-center gap-1.5 cursor-pointer shadow-[0_0_8px_rgba(255,204,0,0.15)]">
-                    <i class="fas fa-star text-[11px]"></i>
-                    <span class="font-bold uppercase tracking-wider text-[10px]">Stash</span>
-                    <span id="stash-count-badge"
-                        class="bg-[#333] text-[#888] text-[9px] px-1.5 py-0.2 rounded-full font-bold">0</span>
-                </button>
-                <button onclick="openStats()" title="Discovery Stats" aria-label="View stats"
-                    class="text-[#3399ff] hover:text-white transition-colors text-lg px-2 py-1 border border-[#333] hover:border-[#3399ff] bg-[#0a0a0a] cursor-pointer">
-                    <i class="fas fa-chart-bar"></i>
-                </button>
-                <button onclick="openSettings()" title="Settings" aria-label="Open settings"
-                    class="text-[#39ff14] hover:text-white transition-colors text-lg px-2 py-1 border border-[#333] hover:border-[#39ff14] bg-[#0a0a0a] cursor-pointer">
-                    <i class="fas fa-cog"></i>
-                </button>
-            </div>
-        </div>
-
-        <!-- ── Settings Modal ── -->
-        <div id="settings-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeSettings()">
-            <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
-                <div class="modal-header">
-                    <div id="settings-modal-title" class="flex items-center">
-                        <i class="fas fa-cog mr-2 text-[#39ff14]"></i> System Configuration
-                    </div>
-                    <button type="button" onclick="closeSettings()"
-                        class="text-[#888] hover:text-[#ff3333] transition-colors px-2 py-0.5 text-[12px] font-bold cursor-pointer"
-                        title="Close (Esc)">
-                        <i class="fas fa-times"></i>
-                    </button>
+            <div class="modal-body-scrollable">
+                <div id="first-time-api-notice" class="rear-notice hidden">
+                    <span class="lamp lamp-yellow is-on is-blink"></span>
+                    <span><b>No antenna connected.</b> Plug in your free Gemini API key below to start hunting.</span>
                 </div>
-                <div class="modal-body-scrollable space-y-3.5">
-                    <div id="first-time-api-notice"
-                        class="hidden bg-[#001a08] border border-[#39ff14] text-white p-2.5 shadow-[0_0_8px_rgba(57,255,20,0.2)] flex items-start gap-2">
-                        <i class="fas fa-key text-[#39ff14] text-xs mt-0.5 shrink-0"></i>
-                        <div class="text-[10px] leading-tight">
-                            <span class="font-bold text-[#39ff14] uppercase tracking-wider block mb-0.5">Welcome! API
-                                Key Required</span>
-                            <span class="text-white">Paste your free Gemini API key below to unlock AI music
-                                discovery.</span>
+                <div class="rear-section">
+                    <span class="silk-title silk">Antenna in · Gemini API key</span>
+                    <div class="rear-row">
+                        <span class="jack"></span>
+                        <input class="field" type="password" id="api-key-input" placeholder="paste your API key…" autocomplete="off" aria-label="Gemini API key">
+                    </div>
+                    <div id="api-key-status" class="key-status hidden"></div>
+                    <p class="rear-help">Model <span class="readout">gemini-3.5-flash-lite</span>. Get a key from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a> — stored in this browser only.</p>
+                </div>
+
+                <div class="rear-section">
+                    <span class="silk-title silk">Options</span>
+                    <div class="rear-row rear-options">
+                        <label class="bat is-inverse">
+                            <span class="bat-legend bat-title silk">Auto-scroll</span>
+                            <input type="checkbox" id="auto-scroll-toggle">
+                            <span class="bat-legend is-up">On</span>
+                            <span class="bat-lever"></span>
+                            <span class="bat-legend is-down">Off</span>
+                        </label>
+                        <div class="knob-wrap" id="knob-textsize" data-values="text-size-small,text-size-normal,text-size-large" data-angles="-45,0,45" data-value="text-size-small" style="--size:46px">
+                            <div class="knob-ticks"></div>
+                            <button type="button" class="knob" aria-label="Text size"></button>
+                            <button type="button" class="knob-mark" data-value="text-size-small" style="--a:-45deg">S</button>
+                            <button type="button" class="knob-mark" data-value="text-size-normal" style="--a:0deg">M</button>
+                            <button type="button" class="knob-mark" data-value="text-size-large" style="--a:45deg">L</button>
+                            <span class="knob-title silk">Text size</span>
                         </div>
+                        <input type="hidden" id="text-size-select" value="text-size-small">
                     </div>
-                    <div>
-                        <label class="block text-[#669966] text-[10px] uppercase font-bold mb-1">Gemini API Key</label>
-                        <input type="password" id="api-key-input" placeholder="Paste your API key here..."
-                            class="w-full bg-[#0a0a0a] border border-[#333] focus:border-[#39ff14] text-[#39ff14] px-2.5 py-1.5 outline-none font-bold placeholder-[#333] key-input-vis text-[11px]">
-                        <div id="api-key-status" class="hidden text-[10px] mt-1 font-bold uppercase tracking-wider">
-                        </div>
-                        <p class="text-white text-[9.5px] mt-1">Get a key from <a
-                                href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer"
-                                class="text-[#3399ff] underline font-bold">Google AI Studio</a>. Stored locally in your
-                            browser only.</p>
-                    </div>
-                    <div class="flex items-center justify-between bg-[#0a0a0a] border border-[#222] px-3 py-2">
-                        <span class="text-[#888] text-[10px] uppercase font-bold">AI Model</span>
-                        <span class="text-[#39ff14] text-[11px] font-mono font-bold">gemini-3.5-flash-lite</span>
-                    </div>
-                    <div>
-                        <label class="block text-[#888] text-[10px] uppercase font-bold mb-1">Text & UI Size</label>
-                        <select id="text-size-select"
-                            class="w-full bg-[#0a0a0a] border border-[#333] focus:border-[#39ff14] text-white px-2.5 py-1.5 outline-none font-bold text-[11px] cursor-pointer">
-                            <option value="text-size-small" style="color:#fff" selected>Small ✓</option>
-                            <option value="text-size-normal" style="color:#fff">Normal</option>
-                            <option value="text-size-large" style="color:#fff">Large</option>
+                </div>
+
+                <div class="rear-section">
+                    <span class="silk-title silk">Service adjustments · AI prompt</span>
+                    <label class="rear-label silk" for="prompt-persona-input">Persona (role)</label>
+                    <input type="text" class="field field-plain" id="prompt-persona-input">
+                    <label class="rear-label silk" for="prompt-constraints-input">Selection rules / constraints</label>
+                    <textarea class="field field-plain" id="prompt-constraints-input" rows="3"></textarea>
+                    <div class="rear-row rear-split">
+                        <label class="rear-label silk" for="prompt-explicit-input">Explicit content</label>
+                        <select class="field field-plain" id="prompt-explicit-input">
+                            <option value="allow">Allow explicit tracks</option>
+                            <option value="clean">Clean tracks only</option>
                         </select>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox" id="auto-scroll-toggle" class="cursor-pointer">
-                        <label for="auto-scroll-toggle"
-                            class="text-[#888] text-[10px] uppercase font-bold cursor-pointer">Auto-scroll to new
-                            playlists</label>
-                    </div>
-                    <div class="border-t border-[#222] pt-2.5 mt-1">
-                        <label
-                            class="block text-[#39ff14] text-[10.5px] uppercase font-bold mb-2 flex justify-between items-center border-b border-[#111] pb-1">
-                            <span>Advanced Prompt Configuration</span>
-                            <button type="button" onclick="resetStructuredPrompt(this)"
-                                class="text-[#3399ff] hover:text-white transition-colors text-[9px] uppercase cursor-pointer">Reset
-                                to Default</button>
-                        </label>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                            <div class="col-span-1 md:col-span-2">
-                                <label class="block text-[#888] text-[9px] uppercase font-bold mb-1">AI Persona
-                                    (Role)</label>
-                                <input type="text" id="prompt-persona-input"
-                                    class="w-full bg-[#0a0a0a] border border-[#333] focus:border-[#39ff14] text-white px-2.5 py-1.5 outline-none text-[11px]">
-                            </div>
-                            <div class="col-span-1 md:col-span-2">
-                                <label class="block text-[#888] text-[9px] uppercase font-bold mb-1">Additional
-                                    Selection Rules / Constraints</label>
-                                <textarea id="prompt-constraints-input" rows="2"
-                                    class="w-full bg-[#0a0a0a] border border-[#333] focus:border-[#39ff14] text-white px-2.5 py-1.5 outline-none text-[11px] resize-y"></textarea>
-                            </div>
-                            <div class="col-span-1 md:col-span-2">
-                                <label class="block text-[#888] text-[9px] uppercase font-bold mb-1">Explicit
-                                    Content</label>
-                                <select id="prompt-explicit-input"
-                                    class="w-full bg-[#0a0a0a] border border-[#333] focus:border-[#39ff14] text-white px-2.5 py-1.5 outline-none text-[11px] cursor-pointer">
-                                    <option value="allow" style="color:#fff">Allow Explicit Tracks</option>
-                                    <option value="clean" style="color:#fff">Clean Tracks Only</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="border-t border-[#222] pt-2.5 mt-1">
-                        <label class="block text-[#888] text-[10px] uppercase font-bold mb-1">Desktop & Mobile
-                            App</label>
-                        <div class="flex items-center justify-between bg-[#0a0a0a] border border-[#222] px-3 py-2">
-                            <div>
-                                <span class="text-white text-[11px] font-bold block">Standalone PWA</span>
-                                <span id="pwa-status-text" class="text-white text-[9.5px]">Run SoundHunt in a dedicated
-                                    desktop window</span>
-                            </div>
-                            <button type="button" id="settings-pwa-install-btn" onclick="triggerPwaInstall()"
-                                class="bg-[#0a2a0a] hover:bg-[#1a4a1a] text-[#39ff14] border border-[#1a7b1a] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer">
-                                Install App
-                            </button>
-                        </div>
-                    </div>
-                    <div class="border-t border-[#222] pt-2.5 mt-1">
-                        <label class="block text-[#888] text-[10px] uppercase font-bold mb-1">Local Storage & Cache Management</label>
-                        <div class="flex items-center justify-between bg-[#0a0a0a] border border-[#222] px-3 py-2">
-                            <div class="min-w-0 flex-1 mr-2">
-                                <span class="text-white text-[11px] font-bold block">Purge Cached Data</span>
-                                <span class="text-white text-[9.5px] block leading-snug">Clears playlists, search history, analyzed BPM & keys, and stash. Keeps your API key safe.</span>
-                            </div>
-                            <button type="button" id="clear-app-data-btn" onclick="clearApplicationData(this)"
-                                class="bg-[#220000] hover:bg-[#330000] text-[#ff4444] hover:text-white border border-[#550000] hover:border-[#ff4444] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer shrink-0">
-                                <i class="fas fa-trash-alt mr-1"></i> Clear Data
-                            </button>
-                        </div>
-                        <div id="clear-data-status" class="hidden text-[10px] mt-1.5 font-bold uppercase tracking-wider text-[#39ff14]"></div>
+                    <div class="rear-row rear-split">
+                        <span class="rear-help">Restore the factory prompt</span>
+                        <div class="fn"><span class="fn-legend">Default</span><button type="button" class="cap cap-sm" onclick="resetStructuredPrompt(this)" aria-label="Reset prompt to default"><i class="fas fa-rotate-left"></i></button></div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" id="settings-save-btn" onclick="saveSettings()"
-                        class="flex-1 bg-[#0a2a0a] hover:bg-[#1a4a1a] text-[#39ff14] border border-[#1a7b1a] px-4 py-2 font-bold uppercase text-[11px] tracking-wider transition-all cursor-pointer">
-                        <i class="fas fa-save mr-1"></i> Save
-                    </button>
-                    <button type="button" onclick="closeSettings()"
-                        class="flex-1 bg-[#1a1a1a] hover:bg-[#2a2a2a] text-[#888] hover:text-white border border-[#333] px-4 py-2 font-bold uppercase text-[11px] tracking-wider transition-all cursor-pointer">
-                        Cancel
-                    </button>
+
+                <div class="rear-section">
+                    <span class="silk-title silk">Install · standalone app</span>
+                    <div class="rear-row rear-split">
+                        <span class="rear-help" id="pwa-status-text">Run SoundHunt in its own window</span>
+                        <div class="fn"><span class="fn-legend">Install</span><button type="button" class="cap" id="settings-pwa-install-btn" onclick="triggerPwaInstall()" aria-label="Install app"><i class="fas fa-download"></i></button></div>
+                    </div>
+                </div>
+
+                <div class="rear-section">
+                    <span class="silk-title silk">Service · factory reset</span>
+                    <div class="rear-row rear-split">
+                        <span class="rear-help">Clears programs, memory, BPM/key cache and crate. Keeps your API key.</span>
+                        <div class="guarded" id="clear-guard">
+                            <button type="button" class="guard-cover" onclick="document.getElementById('clear-guard').classList.toggle('is-open')" aria-label="Lift safety cover"><i class="fas fa-triangle-exclamation"></i></button>
+                            <button type="button" class="cap cap-sq cap-danger" id="clear-app-data-btn" onclick="clearApplicationData(this)" aria-label="Clear app data"><i class="fas fa-trash-can"></i></button>
+                        </div>
+                    </div>
+                    <div id="clear-data-status" class="key-status hidden"></div>
                 </div>
             </div>
+            <div class="modal-footer">
+                <div class="fn"><span class="fn-legend">Cancel</span><button type="button" class="cap" onclick="closeSettings()" aria-label="Cancel"><i class="fas fa-xmark"></i></button></div>
+                <div class="fn"><span class="fn-legend"><span class="lamp lamp-green is-on"></span>Apply</span><button type="button" class="cap" id="settings-save-btn" onclick="saveSettings()" aria-label="Save settings"><i class="fas fa-check"></i></button></div>
+            </div>
+            <span class="corner-screw bl"></span><span class="corner-screw br"></span>
         </div>
-
-        <!-- ── Stats Modal ── -->
-        <div id="stats-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeStats()">
-            <div class="modal-box" style="max-width:500px" role="dialog" aria-modal="true"
-                aria-labelledby="stats-modal-title">
-                <div class="modal-header">
-                    <div id="stats-modal-title" class="flex items-center">
-                        <i class="fas fa-chart-bar mr-2 text-[#3399ff]"></i> Discovery Analytics
-                    </div>
-                    <button type="button" onclick="closeStats()"
-                        class="text-[#888] hover:text-[#ff3333] transition-colors px-2 py-0.5 text-[12px] font-bold cursor-pointer"
-                        title="Close (Esc)">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div id="stats-content" class="modal-body-scrollable"></div>
-                <div class="modal-footer">
-                    <button type="button" onclick="closeStats()"
-                        class="w-full bg-[#1a1a1a] hover:bg-[#2a2a2a] text-[#888] hover:text-white border border-[#333] px-4 py-2 font-bold uppercase text-[11px] tracking-wider transition-all cursor-pointer">Close</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- ── Dig Deeper Modal (Magnifying Glass) ── -->
-        <div id="dig-deeper-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeDigDeeperModal()">
-            <div class="modal-box border border-[#3399ff] shadow-[0_0_25px_rgba(51,153,255,0.25)]"
-                style="max-width:480px" role="dialog" aria-modal="true" aria-labelledby="dig-deeper-title">
-                <div
-                    class="modal-header bg-gradient-to-b from-[#002244] to-[#001428] border-[#003366] flex items-center justify-between">
-                    <div id="dig-deeper-title"
-                        class="flex items-center text-[#3399ff] font-bold text-sm uppercase tracking-wider">
-                        <i class="fas fa-search mr-2"></i> Dig Deeper: Similar Tracks
-                    </div>
-                    <button type="button" onclick="closeDigDeeperModal()"
-                        class="text-white hover:text-[#ff3333] transition-colors px-2 py-0.5 text-xs font-bold cursor-pointer"
-                        title="Close (Esc)">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="p-4 bg-[#050505] text-white flex flex-col gap-3">
-                    <div>
-                        <span class="text-[10px] text-white uppercase font-bold tracking-widest block mb-1">Seed
-                            Song</span>
-                        <div id="dig-deeper-seed"
-                            class="p-2.5 bg-[#001428] border border-[#003366] text-[#3399ff] font-bold text-xs rounded truncate">
-                            <!-- Seed Track Title -->
-                        </div>
-                    </div>
-
-                    <div>
-                        <span class="text-[10px] text-white uppercase font-bold tracking-widest block mb-1.5">How many
-                            similar tracks to add?</span>
-                        <div class="flex gap-2 mb-2">
-                            <button type="button" onclick="setDigDeeperCount(3)"
-                                class="dig-count-btn px-3 py-1.5 border border-[#444] bg-[#111] text-white hover:border-[#3399ff] text-xs font-bold transition-all flex-1 cursor-pointer"
-                                data-count="3">+3 Tracks</button>
-                            <button type="button" onclick="setDigDeeperCount(5)"
-                                class="dig-count-btn active px-3 py-1.5 border border-[#3399ff] bg-[#002244] text-[#3399ff] shadow-[0_0_8px_rgba(51,153,255,0.3)] text-xs font-bold transition-all flex-1 cursor-pointer"
-                                data-count="5">+5 Tracks</button>
-                            <button type="button" onclick="setDigDeeperCount(10)"
-                                class="dig-count-btn px-3 py-1.5 border border-[#444] bg-[#111] text-white hover:border-[#3399ff] text-xs font-bold transition-all flex-1 cursor-pointer"
-                                data-count="10">+10 Tracks</button>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-[11px] text-white font-bold">Custom quantity:</span>
-                            <input type="number" id="dig-deeper-custom-count" min="1" max="25" value="5"
-                                oninput="onDigCustomCountChange(this.value)"
-                                class="w-16 bg-[#111] border border-[#333] focus:border-[#3399ff] text-white font-bold px-2 py-1 text-xs text-center outline-none">
-                        </div>
-                    </div>
-
-                    <p class="text-[11px] text-[#ddd] leading-relaxed">
-                        SoundHunt will dig through crate archives for genuine songs sharing this track's groove, tempo,
-                        era, and energy, then append them directly to this playlist.
-                    </p>
-                </div>
-                <div class="modal-footer p-3 bg-[#0a0a0a] border-t border-[#222] flex justify-end gap-2">
-                    <button type="button" onclick="closeDigDeeperModal()"
-                        class="px-4 py-2 border border-[#444] bg-[#111] hover:bg-[#222] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer">
-                        Cancel
-                    </button>
-                    <button type="button" id="dig-deeper-submit-btn" onclick="executeDigDeeper()"
-                        class="px-5 py-2 border border-[#0055aa] bg-[#002244] hover:bg-[#003366] text-[#3399ff] text-xs font-bold uppercase tracking-wider transition-all shadow-[0_0_10px_rgba(51,153,255,0.3)] cursor-pointer flex items-center gap-1.5">
-                        <i class="fas fa-search"></i> Hunt & Add Tracks
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- ── External Link Confirmation Modal ── -->
-        <div id="external-link-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeExternalLinkModal()">
-            <div id="external-link-box" class="modal-box" style="max-width:440px" role="dialog" aria-modal="true" aria-labelledby="external-link-title">
-                <div id="external-link-header" class="modal-header">
-                    <div id="external-link-title" class="flex items-center gap-2">
-                        <span id="external-link-icon" class="flex items-center justify-center"></span>
-                        <span id="external-link-service-label">Open External Service</span>
-                    </div>
-                    <button type="button" onclick="closeExternalLinkModal()" class="text-[#888] hover:text-white text-base leading-none px-1 cursor-pointer">&times;</button>
-                </div>
-                <div class="p-4 space-y-3 bg-[#0d0d0d] text-sm">
-                    <div class="text-[11px] uppercase tracking-wider text-[#888] font-mono">Target Track</div>
-                    <div id="external-link-track-name" class="text-white font-bold text-sm truncate p-2.5 bg-[#141414] border border-[#262626] rounded">
-                        <!-- Track Name -->
-                    </div>
-                    <p id="external-link-description" class="text-[#aaa] text-xs leading-relaxed">
-                        Opens <span id="external-link-service-name" class="font-bold text-white"></span> to search in a new tab.
-                    </p>
-                </div>
-                <div class="modal-footer p-3 bg-[#0a0a0a] border-t border-[#222] flex justify-end gap-2">
-                    <button type="button" onclick="closeExternalLinkModal()"
-                        class="px-4 py-1.5 border border-[#333] bg-[#1a1a1a] hover:bg-[#252525] text-[#ccc] hover:text-white text-xs font-mono uppercase tracking-wider transition-colors cursor-pointer">
-                        Cancel
-                    </button>
-                    <button type="button" id="external-link-confirm-btn" onclick="confirmExternalLinkAction()"
-                        class="px-4 py-1.5 text-xs font-mono font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5">
-                        <span>Open in New Tab</span>
-                        <i class="fas fa-external-link-alt text-[10px]"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- ── Main Content ── -->
-        <div class="p-2 md:p-4">
-
-            <!-- Input Panel -->
-            <div class="panel border-[#39ff14] mb-6 shadow-[0_0_15px_rgba(57,255,20,0.15)]">
-                <div class="panel-header text-sm flex items-center justify-between">
-                    <div><i class="fas fa-compass mr-2 text-[#39ff14]"></i> Music Discovery Console</div>
-                </div>
-                <div class="panel-content text-[12px] bg-[#050505]">
-                    <p class="text-white mb-2">Type any vibe, era, or genre in any language.</p>
-
-                    <!-- Discovery Popularity Chips -->
-                    <div class="discovery-focus-wrapper mb-3">
-                        <span class="discovery-focus-label shrink-0">Discovery Focus:</span>
-                        <button type="button" onclick="setDiscoveryChip('deep-cuts')" data-mode="deep-cuts"
-                            class="discovery-chip">
-                            <i class="fas fa-bolt text-[#ffcc00]"></i> Underground
-                        </button>
-                        <button type="button" onclick="setDiscoveryChip('balanced')" data-mode="balanced"
-                            class="discovery-chip active">
-                            <i class="fas fa-compact-disc text-[#39ff14]"></i> Balanced
-                        </button>
-                        <button type="button" onclick="setDiscoveryChip('mainstream')" data-mode="mainstream"
-                            class="discovery-chip">
-                            <i class="fas fa-fire text-[#ff4444]"></i> Mainstream Hits
-                        </button>
-                    </div>
-
-                    <div class="flex flex-col md:flex-row gap-2">
-                        <div class="flex-1 relative">
-                            <div class="flex">
-                                <input type="text" id="ai-vibe"
-                                    class="flex-1 bg-[#111] border border-[#333] focus:border-[#39ff14] text-[#39ff14] px-3 py-2 outline-none font-bold placeholder-[#444] transition-colors w-full">
-                                <button id="prompt-history-btn" onclick="togglePromptHistory()" type="button"
-                                    title="Prompt history"
-                                    class="bg-[#111] border border-l-0 border-[#333] hover:border-[#39ff14] text-[#555] hover:text-[#39ff14] px-2 transition-colors flex items-center">
-                                    <i class="fas fa-chevron-down text-[10px]"></i>
-                                </button>
-                            </div>
-                            <div id="prompt-history-dropdown"
-                                class="hidden absolute left-0 right-0 top-full z-50 bg-[#0a0a0a] border border-[#39ff14] border-t-0 max-h-48 overflow-y-auto shadow-[0_8px_20px_rgba(0,0,0,0.8)]">
-                                <!-- populated by JS -->
-                            </div>
-                        </div>
-
-                        <div class="flex gap-2 items-stretch">
-                            <!-- Stage stepper -->
-                            <button id="stage-btn" onclick="advanceStage()" title="Click to change track count"
-                                class="w-20 bg-[#0a0a0a] border border-[#333] hover:border-[#39ff14] text-[#39ff14] font-bold text-[13px] flex flex-col items-center justify-center py-1 transition-all cursor-pointer select-none"
-                                style="line-height:1">
-                                <span class="text-[8px] text-white uppercase tracking-widest">Tracks</span>
-                                <span id="stage-num" class="stage-anim text-[20px] font-bold">10</span>
-                                <span id="stage-dots" class="flex gap-[3px] mt-[2px]">
-                                    <span class="w-[6px] h-[6px] rounded-full bg-[#39ff14]"></span>
-                                    <span class="w-[6px] h-[6px] rounded-full bg-[#222]"></span>
-                                    <span class="w-[6px] h-[6px] rounded-full bg-[#222]"></span>
-                                    <span class="w-[6px] h-[6px] rounded-full bg-[#222]"></span>
-                                </span>
-                            </button>
-
-                            <button onclick="generateMix()" id="generate-btn"
-                                class="flex-1 md:flex-none bg-[#0a2a0a] hover:bg-[#1a4a1a] text-[#39ff14] border border-[#1a7b1a] px-6 py-2 cursor-pointer font-bold uppercase tracking-wider transition-all whitespace-nowrap">
-                                Hunt Tracks 🔍
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="ai-loading" class="hidden text-center text-[#39ff14] mt-4 flex flex-col items-center">
-                        <i class="fas fa-compact-disc animate-spin-slow mb-2 text-2xl"></i>
-                        <span id="loading-msg" class="italic text-[10px] tracking-widest loading-pulse">HUNTING FOR
-                            TRACKS...</span>
-                    </div>
-
-                    <div id="ai-error"
-                        class="hidden text-center text-[#ff3333] mt-4 border border-[#ff3333] bg-[#330000] p-2 font-bold uppercase">
-                        Connection lost. Diagnostics failed. Try again.
-                    </div>
-
-                    <div id="ai-notice"
-                        class="hidden text-center text-[#ffcc00] mt-3 border border-[#665200] bg-[#1a1500] p-2 font-bold uppercase text-[10px] tracking-wider">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Feed Controls -->
-            <div id="history-controls" class="hidden mb-3">
-                <div
-                    class="history-controls-container flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <!-- Row 1: All, Favorites, Merge -->
-                    <div class="history-row-1 flex items-center justify-center sm:justify-start gap-1.5 flex-wrap">
-                        <button id="btn-filter-all" onclick="setFilter('all')"
-                            class="px-4 py-2 text-[12px] uppercase font-bold tracking-wider border transition-all bg-[#0a2a0a] border-[#1a7b1a] text-[#39ff14]">
-                            <i class="fas fa-list mr-1"></i>All
-                        </button>
-                        <button id="btn-filter-fav" onclick="setFilter('favorites')"
-                            class="px-4 py-2 text-[12px] uppercase font-bold tracking-wider border transition-all bg-[#0a0a0a] border-[#333] text-white">
-                            <i class="fas fa-star mr-1 text-[#ffcc00]"></i>Favorites
-                        </button>
-                        <button id="btn-merge" onclick="toggleMergeMode()" title="Merge playlists"
-                            class="px-4 py-2 text-[12px] uppercase font-bold tracking-wider border transition-all bg-[#0a0a0a] border-[#333] text-white">
-                            <i class="fas fa-layer-group mr-1"></i>Merge
-                        </button>
-                        <button id="merge-go" onclick="executeMerge()"
-                            class="hidden px-4 py-2 text-[12px] uppercase font-bold tracking-wider border transition-all bg-[#0a2a0a] border-[#39ff14] text-[#39ff14]">
-                            <i class="fas fa-check mr-1"></i>Merge Selected
-                        </button>
-                    </div>
-                    <!-- Row 2: Full, Compact, Clear All -->
-                    <div
-                        class="history-row-2 flex items-center justify-center sm:justify-end gap-1.5 flex-wrap sm:ml-auto">
-                        <button id="btn-view-normal" onclick="setView('normal')" title="Normal view"
-                            class="px-4 py-2 text-[12px] uppercase font-bold tracking-wider border transition-all bg-[#0a1a2a] border-[#3399ff] text-[#3399ff]">
-                            <i class="fas fa-th-list mr-1"></i>Full
-                        </button>
-                        <button id="btn-view-compact" onclick="setView('compact')" title="Compact view"
-                            class="px-4 py-2 text-[12px] uppercase font-bold tracking-wider border transition-all bg-[#0a0a0a] border-[#333] text-white">
-                            <i class="fas fa-bars mr-1"></i>Compact
-                        </button>
-                        <button onclick="clearHistory(this)" title="Clear all"
-                            class="px-4 py-2 text-[12px] uppercase font-bold tracking-wider border transition-all bg-[#0a0a0a] border-[#333] text-white hover:border-[#ff3333] hover:text-[#ff3333]">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="mt-2">
-                    <input type="text" id="history-search" placeholder="Search playlists..." oninput="filterHistory()"
-                        class="w-full bg-[#0a0a0a] border border-[#333] focus:border-[#39ff14] text-white px-3 py-1.5 outline-none text-[11px] placeholder-[#aaa] transition-colors">
-                </div>
-            </div>
-
-            <!-- Mix Feed -->
-            <div id="mixes-container" class="gap-3">
-                <!-- Cards prepended here by renderNewMix() -->
-            </div>
-
-        </div><!-- /p-2 -->
-
-        <!-- ── Footer ── -->
-        <div
-            class="bg-black text-white text-[10px] flex flex-col md:flex-row justify-between items-center px-4 py-3 border-t border-[#333] text-center gap-1">
-            <div>SoundHunt &bull; Hunt down songs you didn't know you needed &bull; Pure Music Discovery & Crate Digging
-            </div>
-            <div class="italic text-[#ddd]">made by MFlix</div>
-        </div>
-
-    </div><!-- /container-main -->
-
-    <!-- ── Audio Player Bar ── -->
-    <div id="audio-player-bar">
-        <button id="audio-play-pause" onclick="toggleAudioPlayback()"
-            class="text-[#39ff14] text-lg w-8 h-8 flex items-center justify-center shrink-0">
-            <i class="fas fa-play"></i>
-        </button>
-        <div id="audio-track-title-wrapper" class="overflow-hidden min-w-0 flex-shrink flex items-center">
-            <span id="audio-track-title" class="text-white text-[11px] whitespace-nowrap inline-block">—</span>
-        </div>
-        <span id="audio-track-badges" class="flex items-center gap-1 shrink-0"></span>
-        <div id="audio-progress">
-            <div id="audio-progress-fill"></div>
-        </div>
-        <button onclick="closeAudioPlayer()"
-            class="text-[#555] hover:text-[#ff3333] text-sm shrink-0 transition-colors px-1">
-            <i class="fas fa-times"></i>
-        </button>
     </div>
 
-    <!-- ── Scroll-to-Top ── -->
-    <button id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top"
-        style="position:fixed;bottom:60px;right:24px;width:36px;height:36px;background:#0a0a0a;border:1px solid #333;color:#39ff14;font-size:16px;cursor:pointer;opacity:0;pointer-events:none;transition:opacity 0.3s,border-color 0.3s;display:flex;align-items:center;justify-content:center;z-index:998">
-        <i class="fas fa-chevron-up"></i>
-    </button>
+    <!-- ══════════════════════ METERS (stats) ══════════════════════ -->
+    <div id="stats-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeStats()">
+        <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="stats-modal-title">
+            <span class="corner-screw tl"></span><span class="corner-screw tr"></span>
+            <div class="modal-header">
+                <h2 id="stats-modal-title">Meters · discovery log</h2>
+                <button type="button" class="cap cap-sq modal-close" onclick="closeStats()" aria-label="Close"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div id="stats-content" class="modal-body-scrollable"></div>
+            <span class="corner-screw bl"></span><span class="corner-screw br"></span>
+        </div>
+    </div>
 
-    <!-- ── JavaScript Modules (load order matters) ── -->
-    <script src="js/storage.js?v=0.4.0"></script>
-    <script src="js/stash.js?v=0.4.0"></script>
-    <script src="js/settings.js?v=0.4.0"></script>
-    <script src="js/stats.js?v=0.4.0"></script>
-    <script src="js/player.js?v=0.4.0"></script>
-    <script src="js/audio-dsp-engine.js?v=0.4.0"></script>
-    <script src="js/playlist.js?v=0.4.0"></script>
-    <script src="js/merge.js?v=0.4.0"></script>
-    <script src="js/feed.js?v=0.4.0"></script>
-    <script src="js/api.js?v=0.4.0"></script>
-    <script src="js/ui.js?v=0.4.0"></script>
+    <!-- ══════════════════════ FINE TUNE (dig deeper) ══════════════════════ -->
+    <div id="dig-deeper-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeDigDeeperModal()">
+        <div class="modal-box fine-tune" role="dialog" aria-modal="true" aria-labelledby="dig-deeper-title">
+            <span class="corner-screw tl"></span><span class="corner-screw tr"></span>
+            <div class="modal-header">
+                <h2 id="dig-deeper-title">Fine tune · similar tracks</h2>
+                <button type="button" class="cap cap-sq modal-close" onclick="closeDigDeeperModal()" aria-label="Close"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div class="modal-body-scrollable">
+                <div class="engraved engraved-sm">Seed track</div>
+                <div class="blue-window"><span id="dig-deeper-seed"></span></div>
+                <div class="engraved engraved-sm fine-tune-label">Tracks to add</div>
+                <div class="fine-tune-row">
+                    <div class="fn"><span class="fn-legend">+3</span><button type="button" class="cap dig-count-btn" data-count="3" onclick="setDigDeeperCount(3)" aria-label="Add 3"><span class="cap-num">3</span></button></div>
+                    <div class="fn"><span class="fn-legend">+5</span><button type="button" class="cap dig-count-btn" data-count="5" onclick="setDigDeeperCount(5)" aria-label="Add 5"><span class="cap-num">5</span></button></div>
+                    <div class="fn"><span class="fn-legend">+10</span><button type="button" class="cap dig-count-btn" data-count="10" onclick="setDigDeeperCount(10)" aria-label="Add 10"><span class="cap-num">10</span></button></div>
+                    <div class="fn"><span class="fn-legend">Custom</span><input type="number" class="field field-num" id="dig-deeper-custom-count" min="1" max="25" value="5" oninput="onDigCustomCountChange(this.value)" aria-label="Custom count"></div>
+                </div>
+                <p class="rear-help">SoundHunt digs for genuine songs that share this track's groove, tempo, era and energy, and adds them to this program.</p>
+            </div>
+            <div class="modal-footer">
+                <div class="fn"><span class="fn-legend">Cancel</span><button type="button" class="cap" onclick="closeDigDeeperModal()" aria-label="Cancel"><i class="fas fa-xmark"></i></button></div>
+                <div class="fn"><span class="fn-legend"><span class="lamp lamp-blue is-on"></span>Dig</span><button type="button" class="cap" id="dig-deeper-submit-btn" onclick="executeDigDeeper()" aria-label="Hunt and add tracks"><i class="fas fa-magnifying-glass-plus"></i></button></div>
+            </div>
+            <span class="corner-screw bl"></span><span class="corner-screw br"></span>
+        </div>
+    </div>
+
+    <!-- ══════════════════════ OUTPUT SELECT (external link) ══════════════════════ -->
+    <div id="external-link-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeExternalLinkModal()">
+        <div id="external-link-box" class="modal-box output-select" role="dialog" aria-modal="true" aria-labelledby="external-link-title">
+            <div id="external-link-header" class="modal-header">
+                <h2 id="external-link-title"><span id="external-link-icon"></span><span id="external-link-service-label">Output select</span></h2>
+                <button type="button" class="cap cap-sq modal-close" onclick="closeExternalLinkModal()" aria-label="Close"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div class="modal-body-scrollable">
+                <div class="engraved engraved-sm">Target track</div>
+                <div class="output-window"><span id="external-link-track-name"></span></div>
+                <p id="external-link-description" class="rear-help">Opens <span id="external-link-service-name"></span> to search in a new tab.</p>
+            </div>
+            <div class="modal-footer">
+                <div class="fn"><span class="fn-legend">Cancel</span><button type="button" class="cap" onclick="closeExternalLinkModal()" aria-label="Cancel"><i class="fas fa-xmark"></i></button></div>
+                <div class="fn"><span class="fn-legend"><span class="lamp is-on output-lamp"></span>Open</span><button type="button" class="cap" id="external-link-confirm-btn" onclick="confirmExternalLinkAction()" aria-label="Open in new tab"><i class="fas fa-arrow-up-right-from-square"></i></button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scroll-to-top -->
+    <button type="button" id="scroll-top" class="cap cap-sq" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top"><i class="fas fa-chevron-up"></i></button>
+
+    <!-- ── JavaScript (classic scripts, load order matters) ── -->
+    <script src="js/controls.js?v=0.5.0"></script>
+    <script src="js/storage.js?v=0.5.0"></script>
+    <script src="js/stash.js?v=0.5.0"></script>
+    <script src="js/settings.js?v=0.5.0"></script>
+    <script src="js/stats.js?v=0.5.0"></script>
+    <script src="js/player.js?v=0.5.0"></script>
+    <script src="js/audio-dsp-engine.js?v=0.5.0"></script>
+    <script src="js/playlist.js?v=0.5.0"></script>
+    <script src="js/merge.js?v=0.5.0"></script>
+    <script src="js/feed.js?v=0.5.0"></script>
+    <script src="js/api.js?v=0.5.0"></script>
+    <script src="js/ui.js?v=0.5.0"></script>
 
 </body>
-
 </html>
