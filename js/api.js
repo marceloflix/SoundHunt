@@ -87,7 +87,6 @@ const DEPTH_ZONES = [
     { value: 'mainstream', center: 5 / 6, label: 'MAINSTREAM' },
 ];
 let _dialTimer = null;
-let _dialKind = '';
 
 function dialIdleText() {
     if (typeof isPowered === 'function' && !isPowered()) return '';
@@ -100,7 +99,6 @@ function setDialMessage(text, kind = '', holdMs = 0) {
     const el = document.getElementById('dial-msg');
     if (!el) return;
     clearTimeout(_dialTimer);
-    _dialKind = kind;
     el.className = 'dial-msg' + (kind ? ' is-' + kind : '');
     el.textContent = text;
     if (holdMs > 0) _dialTimer = setTimeout(refreshDialIdle, holdMs);
@@ -116,10 +114,6 @@ function showError(msg) {
 
 function showNotice(msg, autoDismissMs = 8000) {
     setDialMessage(msg, 'notice', autoDismissMs);
-}
-
-function hideNotice() {
-    if (_dialKind === 'notice') refreshDialIdle();
 }
 
 // ── Rate-Limit Countdown ──
@@ -338,12 +332,7 @@ let _depthDial = null;
 
 function getActiveDiscoveryChip() {
     if (_depthDial) return _depthDial.get();
-    return localStorage.getItem('soundhunt_discovery_chip') || 'balanced';
-}
-
-function setDiscoveryChip(mode) {
-    if (_depthDial) _depthDial.set(mode);
-    localStorage.setItem('soundhunt_discovery_chip', mode);
+    return localStorage.getItem(STORAGE_KEYS.depth) || 'balanced';
 }
 
 // ── Dig Deeper Modal Controller (Magnifying Glass) ──
@@ -405,11 +394,6 @@ function latchDigCount(count) {
     document.querySelectorAll('.dig-count-btn').forEach(btn => {
         btn.classList.toggle('is-latched', parseInt(btn.dataset.count, 10) === count);
     });
-}
-
-// Backwards compatibility alias
-function promptSimilarTrackCount(artist, title, btn) {
-    openDigDeeperModal(null, null, artist, title);
 }
 
 // ── Execute Dig Deeper: Append Similar Tracks to Existing Playlist ──

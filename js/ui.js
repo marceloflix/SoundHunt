@@ -12,7 +12,7 @@ function getTrackCount() {
 // The receiver starts in standby (red LED, every display dark). POWER lights it up with
 // the era warm-up sequence; nothing works until it's on. Within a browser session the
 // power state survives reloads; a fresh visit starts in standby again.
-const POWER_SESSION_KEY = 'soundhunt_powered';
+const POWER_SESSION_KEY = STORAGE_KEYS.power;
 let _powered = false;
 
 function isPowered() { return _powered; }
@@ -131,10 +131,10 @@ function initReceiver() {
     });
 
     _depthDial = SHControls.initDepthDial(document.getElementById('dial'), document.getElementById('flywheel'), DEPTH_ZONES, mode => {
-        localStorage.setItem('soundhunt_discovery_chip', mode);
+        localStorage.setItem(STORAGE_KEYS.depth, mode);
         if (isPowered()) refreshDialIdle();
     });
-    _depthDial.set(localStorage.getItem('soundhunt_discovery_chip') || 'balanced');
+    _depthDial.set(localStorage.getItem(STORAGE_KEYS.depth) || 'balanced');
 
     renderPresets();
 

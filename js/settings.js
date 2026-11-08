@@ -84,10 +84,6 @@ function closeSettings() {
     document.getElementById('settings-modal').classList.add('hidden');
     const guard = document.getElementById('clear-guard');
     if (guard) guard.classList.remove('is-open');
-    const mainErrorDiv = document.getElementById('ai-error');
-    if (mainErrorDiv && mainErrorDiv.textContent.includes('API KEY REQUIRED') && getApiKey()) {
-        mainErrorDiv.classList.add('hidden');
-    }
 }
 
 async function saveSettings() {
@@ -154,19 +150,12 @@ async function saveSettings() {
         saveBtn.classList.add('is-latched');
     }
 
-    // Clear any previous "API KEY REQUIRED" error on main screen
-    const mainErrorDiv = document.getElementById('ai-error');
-    if (mainErrorDiv && (mainErrorDiv.textContent.includes('API KEY REQUIRED') || mainErrorDiv.textContent.includes('API_KEY_ERROR'))) {
-        mainErrorDiv.classList.add('hidden');
-    }
-
     // Save preferences
     localStorage.setItem(STORAGE_KEYS.apiKey, key);
     if (key) {
         const firstTimeNotice = document.getElementById('first-time-api-notice');
         if (firstTimeNotice) firstTimeNotice.classList.add('hidden');
     }
-    localStorage.setItem(STORAGE_KEYS.model, GEMINI_MODEL);
     localStorage.setItem(STORAGE_KEYS.textSize, textSize);
     localStorage.setItem(STORAGE_KEYS.autoScroll, autoScroll);
     localStorage.setItem(STORAGE_KEYS.promptPersona, persona);
@@ -200,14 +189,8 @@ function clearApplicationData(btn) {
 
     try {
         // 1. Purge cached items from localStorage
-        localStorage.removeItem(STORAGE_KEYS.history);
-        localStorage.removeItem(STORAGE_KEYS.prompts);
-        localStorage.removeItem('soundhunt_bpm_key_cache');
-        localStorage.removeItem('soundhunt_bpm_key_cache_v2');
-        localStorage.removeItem('soundhunt_bpm_key_cache_v3');
-        localStorage.removeItem('soundhunt_download_stash');
-        localStorage.removeItem('soundhunt_stash');
-        localStorage.removeItem('soundhunt_discovery_chip');
+        [STORAGE_KEYS.history, STORAGE_KEYS.prompts, STORAGE_KEYS.dspCache, STORAGE_KEYS.crate, STORAGE_KEYS.depth]
+            .forEach(k => localStorage.removeItem(k));
 
         // Strictly ensure API key is never overwritten or lost
         if (currentApiKey) {

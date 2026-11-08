@@ -37,7 +37,7 @@ const MAJOR_PITCH_TO_CAMELOT = ['8B', '3B', '10B', '5B', '12B', '7B', '2B', '9B'
 const MINOR_PITCH_TO_CAMELOT = ['5A', '12A', '7A', '2A', '9A', '4A', '11A', '6A', '1A', '8A', '3A', '10A'];
 
 // ── Multi-Tier Analysis Cache ──
-const CACHE_STORAGE_KEY = 'soundhunt_bpm_key_cache_v3';
+const CACHE_STORAGE_KEY = STORAGE_KEYS.dspCache;
 const inMemoryDspCache = new Map();
 
 function getCacheKey(artist, title) {
@@ -65,13 +65,6 @@ function normalizeTrackToCacheKey(trackStr) {
 
 function initDspCache() {
     try {
-        // Auto-purge legacy v1 & v2 caches so stale calculations don't persist
-        if (localStorage.getItem('soundhunt_bpm_key_cache')) {
-            localStorage.removeItem('soundhunt_bpm_key_cache');
-        }
-        if (localStorage.getItem('soundhunt_bpm_key_cache_v2')) {
-            localStorage.removeItem('soundhunt_bpm_key_cache_v2');
-        }
         const stored = localStorage.getItem(CACHE_STORAGE_KEY);
         if (stored) {
             const parsed = JSON.parse(stored);
@@ -693,7 +686,6 @@ class ConcurrentDspQueue {
         rowEl = findTrackRow(ts, index, track);
         if (rowEl) {
             renderTrackBadgeResult(rowEl, analysis);
-            evaluateTrackRowLayout(rowEl);
         }
 
         this.updateProgress(ts);
@@ -737,10 +729,7 @@ class ConcurrentDspQueue {
             const cached = !forceReanalyze ? getCachedAnalysis(trackStr) : null;
             if (cached) {
                 const rowEl = document.getElementById(`track-${ts}-${i}`);
-                if (rowEl) {
-                    renderTrackBadgeResult(rowEl, cached);
-                    evaluateTrackRowLayout(rowEl);
-                }
+                if (rowEl) renderTrackBadgeResult(rowEl, cached);
                 this.updateProgress(ts);
             } else {
                 uncachedItems.push({
@@ -811,13 +800,8 @@ function renderTrackBadgeResult(rowEl, analysis) {
     badgeContainer.innerHTML = getBadgeHTML(analysis);
 }
 
-// ── Layout Compatibility Helpers ──
-function evaluateTrackRowLayout(row) {}
-function observeTrackRow(row) {}
-function observeAllTrackRows() {}
-
 // ── Global Interface Functions ──
-function triggerPlaylistAnalysis(ts, btn, force = false) {
+function triggerPlaylistAnalysis(ts) {
     if (typeof isPowered === 'function' && !isPowered()) { if (typeof nudgePower === 'function') nudgePower(); return; }
     const history = typeof getHistory === 'function' ? getHistory() : [];
     const mix = history.find(m => String(m._timestamp) === String(ts));
@@ -834,9 +818,8 @@ function triggerPlaylistAnalysis(ts, btn, force = false) {
 
     if (!tracks || tracks.length === 0) return;
 
-    // A press always re-tries tracks that came back without BPM/key (offline, rate limit,
-    // no preview); finished analyses are deterministic, so they're reused. `force`
-    // re-runs everything.
-    if (!force) forgetFailedAnalyses(tracks);
-    dspQueue.startPlaylist(ts, tracks, force);
+    // A press re-tries tracks that came back without BPM/key (offline, rate limit, no
+    // preview); finished analyses are deterministic, so they're reused.
+    forgetFailedAnalyses(tracks);
+    dspQueue.startPlaylist(ts, tracks, false);
 }

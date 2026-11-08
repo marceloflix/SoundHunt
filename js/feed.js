@@ -109,10 +109,6 @@ function rebuildFeed() {
     if (typeof mergeMode !== 'undefined' && mergeMode && typeof applyMergeHighlights === 'function') {
         applyMergeHighlights();
     }
-
-    setTimeout(() => {
-        if (typeof observeAllTrackRows === 'function') observeAllTrackRows();
-    }, 50);
 }
 
 function filterHistory() { rebuildFeed(); }
@@ -136,17 +132,6 @@ function toggleFavorite(btn, ts) {
         btn.setAttribute('aria-pressed', isFav ? 'true' : 'false');
     }
     if (currentFilter === 'favorites' && !isFav) rebuildFeed();
-}
-
-// ── Highlight Track ──
-function highlightTrack(ts, index) {
-    const el = document.getElementById(`track-${ts}-${index}`);
-    if (!el) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    el.classList.remove('is-flash');
-    void el.offsetWidth;
-    el.classList.add('is-flash');
-    setTimeout(() => el.classList.remove('is-flash'), 1600);
 }
 
 // ── Track string helper ──
@@ -395,12 +380,6 @@ function confirmExternalLinkAction() {
     closeExternalLinkModal();
 }
 
-// Backward-compatible alias
-function confirmExternalLink(event, serviceName, trackName) {
-    const target = event && event.currentTarget ? event.currentTarget.href : null;
-    return openExternalLinkModal(event, target, serviceName, trackName);
-}
-
 // ── Build single track row HTML ──
 function buildTrackHTML(track, index, ts, allTracks = []) {
     const isObj = typeof track === 'object' && track !== null;
@@ -559,7 +538,7 @@ function renderNewMix(data, persist = false) {
                     <div class="group">
                         <span class="bracket engraved engraved-sm">Program control</span>
                         <div class="mix-buttons">
-                            <div class="fn mix-analyze"><span class="fn-legend"><span class="lamp"></span><span class="fn-text">BPM · Key</span></span><button type="button" id="btn-analyze-${tsH}" class="cap cap-sm btn-analyze-playlist" onclick="event.stopPropagation();triggerPlaylistAnalysis('${tsJ}', this)" title="Analyze BPM and Camelot keys · press again to retry tracks that came back empty" aria-label="Analyze BPM and key"><i class="fas fa-wave-square"></i></button></div>
+                            <div class="fn mix-analyze"><span class="fn-legend"><span class="lamp"></span><span class="fn-text">BPM · Key</span></span><button type="button" id="btn-analyze-${tsH}" class="cap cap-sm btn-analyze-playlist" onclick="event.stopPropagation();triggerPlaylistAnalysis('${tsJ}')" title="Analyze BPM and Camelot keys · press again to retry tracks that came back empty" aria-label="Analyze BPM and key"><i class="fas fa-wave-square"></i></button></div>
                             <div class="fn mix-select"><span class="fn-legend">Select</span><button type="button" class="cap cap-sm btn-select-tracks" onclick="event.stopPropagation();toggleSelectionMode('${tsJ}')" title="Select tracks" aria-label="Select tracks" aria-pressed="false"><i class="fas fa-list-check"></i></button></div>
                             <div class="fn mix-eject"><span class="fn-legend">Eject</span><button type="button" class="cap cap-sm cap-danger" onclick="event.stopPropagation();deleteMix(this, '${tsJ}')" title="Delete this program" aria-label="Eject (delete program)"><i class="fas fa-eject"></i></button></div>
                         </div>
@@ -585,13 +564,8 @@ function renderNewMix(data, persist = false) {
     container.insertBefore(card, container.firstChild);
     if (isPlaylistSelecting(ts)) updateSelectionUI(ts);
 
-    // Observe newly rendered track rows and start background analysis
+    // Background BPM/key analysis (only while the set is on)
     setTimeout(() => {
-        if (card.isConnected) {
-            card.querySelectorAll('.track-row').forEach(r => {
-                if (typeof observeTrackRow === 'function') observeTrackRow(r);
-            });
-        }
         if ((!isCompact || isExpanded) && card.isConnected) analyzeMixCard(card, tracks);
     }, 40);
 

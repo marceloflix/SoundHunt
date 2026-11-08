@@ -346,7 +346,6 @@ async function previewTrack(trackName, btn) {
                 const row = btn && btn.closest ? btn.closest('.track-row') : null;
                 if (row && typeof renderTrackBadgeResult === 'function') {
                     renderTrackBadgeResult(row, res);
-                    if (typeof evaluateTrackRowLayout === 'function') evaluateTrackRowLayout(row);
                 }
             }).catch(() => {
                 if (token === deckLoadToken) setDeckBadges(null);

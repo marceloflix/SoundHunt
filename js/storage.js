@@ -2,7 +2,6 @@
 // Primary model first; the next one takes over when the primary is rate-limited,
 // overloaded, can't answer, or has been retired.
 const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash-lite'];
-const GEMINI_MODEL = GEMINI_MODELS[0];
 
 // ── HTML escaping (everything from Gemini or the user goes through these before innerHTML) ──
 function escapeHtml(value) {
@@ -28,20 +27,51 @@ function feedEmptyHTML(message) {
 // What an armed (click-again-to-confirm) cap shows, see armConfirmButton().
 const CONFIRM_HTML = '<i class="fas fa-question confirm-icon"></i>';
 
-// ── Storage Keys ──
+// ── Storage Keys (every key the app stores, in one place) ──
 const STORAGE_KEYS = {
-    apiKey:     'megamix_api_key',
-    model:      'megamix_model',
-    history:    'megamix_history',
-    prompts:    'megamix_prompts',
-    textSize:   'megamix_text_size',
-    view:       'megamix_view',
-    autoScroll: 'megamix_auto_scroll',
-    promptPersona: 'megamix_prompt_persona',
-    promptConstraints: 'megamix_prompt_constraints',
-    promptExplicit: 'megamix_prompt_explicit',
-    promptPopularity: 'megamix_prompt_popularity'
+    apiKey:            'soundhunt_api_key',
+    history:           'soundhunt_history',
+    prompts:           'soundhunt_prompts',
+    crate:             'soundhunt_crate',
+    dspCache:          'soundhunt_dsp_cache',
+    depth:             'soundhunt_depth',
+    view:              'soundhunt_view',
+    textSize:          'soundhunt_text_size',
+    autoScroll:        'soundhunt_auto_scroll',
+    promptPersona:     'soundhunt_prompt_persona',
+    promptConstraints: 'soundhunt_prompt_constraints',
+    promptExplicit:    'soundhunt_prompt_explicit',
+    power:             'soundhunt_powered' // sessionStorage
 };
+
+// One-time move from the old names (megamix_* from the app's first life, plus a few
+// earlier soundhunt_* names) so nobody loses their key, programs or crate.
+(function migrateStorageKeys() {
+    const moves = {
+        megamix_api_key: STORAGE_KEYS.apiKey,
+        megamix_history: STORAGE_KEYS.history,
+        megamix_prompts: STORAGE_KEYS.prompts,
+        megamix_text_size: STORAGE_KEYS.textSize,
+        megamix_view: STORAGE_KEYS.view,
+        megamix_auto_scroll: STORAGE_KEYS.autoScroll,
+        megamix_prompt_persona: STORAGE_KEYS.promptPersona,
+        megamix_prompt_constraints: STORAGE_KEYS.promptConstraints,
+        megamix_prompt_explicit: STORAGE_KEYS.promptExplicit,
+        soundhunt_download_stash: STORAGE_KEYS.crate,
+        soundhunt_discovery_chip: STORAGE_KEYS.depth,
+        soundhunt_bpm_key_cache_v3: STORAGE_KEYS.dspCache,
+    };
+    const retired = ['megamix_model', 'megamix_prompt_popularity', 'soundhunt_bpm_key_cache', 'soundhunt_bpm_key_cache_v2', 'soundhunt_stash'];
+    try {
+        Object.entries(moves).forEach(([from, to]) => {
+            const v = localStorage.getItem(from);
+            if (v === null) return;
+            if (localStorage.getItem(to) === null) localStorage.setItem(to, v);
+            localStorage.removeItem(from);
+        });
+        retired.forEach(k => localStorage.removeItem(k));
+    } catch (e) { /* storage blocked (private mode): nothing to move */ }
+})();
 
 const DEFAULT_PROMPT = {
     persona: "an elite music curator and musicologist with encyclopedic knowledge of genres, eras, and discographies",
@@ -144,16 +174,6 @@ document.addEventListener('click', (e) => {
 // ── API Key & Model ──
 function getApiKey() {
     return localStorage.getItem(STORAGE_KEYS.apiKey) || '';
-}
-
-// Backward-compatibility safe stubs
-function getMusicApiKey() { return ''; }
-function saveMusicApiKey() {}
-function lookupSongInDatabase() { return null; }
-function lookupVerifiedCatalog() { return null; }
-
-function getModel() {
-    return GEMINI_MODEL;
 }
 
 function getTextSize() {

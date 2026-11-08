@@ -1,7 +1,7 @@
 // ── SoundHunt: Download Stash (the CRATE drawer) ──
 // Stores keeper tracks for one-tap downloading via Monochrome.
 
-const STASH_KEY = 'soundhunt_download_stash';
+const STASH_KEY = STORAGE_KEYS.crate;
 
 function getStash() {
     try {
@@ -231,12 +231,6 @@ function clearStash(btn) {
     document.querySelectorAll('.stash-star-btn').forEach(btn => {
         updateStarButtonUI(btn, false);
     });
-}
-
-function showStashToast(msg) {
-    // Disabled: Toast notifications removed as requested (previously rendered behind bottom player)
-    const existing = document.getElementById('soundhunt-toast');
-    if (existing) existing.remove();
 }
 
 // Initial badge update on load
