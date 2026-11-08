@@ -1,18 +1,61 @@
 // ── View & Filter State ──
 let currentFilter = 'all';
-let currentView   = 'normal';
+let currentView   = (() => {
+    try { return localStorage.getItem(STORAGE_KEYS.view) === 'compact' ? 'compact' : 'normal'; }
+    catch (e) { return 'normal'; }
+})();
+// Compact cards the user has opened (by timestamp); survives feed rebuilds, not reloads.
+const expandedCompact = new Set();
 
 // Monochrome logo (inline so it can take currentColor).
 const FEED_MONOCHROME_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="14.75 14.75 70.5 70.5" aria-hidden="true"><g fill="currentColor"><path d="M38.25 14.75H85.25V61.75H61.75V38.25H38.25ZM14.75 38.25H38.25V61.75H61.75V85.25H14.75Z"/></g></svg>';
 
-const FEED_PHONE_QUERY = '(max-width: 640px)';
+// ── Compact view: open / close one card in place ──
+function toggleCompactCard(ts) {
+    const card = document.querySelector(`#mixes-container [data-ts="${CSS.escape(ts)}"]`);
+    if (!card) return;
+    const open = !expandedCompact.has(ts);
+    if (open) expandedCompact.add(ts); else expandedCompact.delete(ts);
+    animateUnitHeight(card, () => card.classList.toggle('is-expanded', open), open);
+    if (open) analyzeMixCard(card);
+}
 
-// ── Expand compact card and scroll to it ──
-function expandAndScrollTo(ts) {
-    setView('normal');
-    requestAnimationFrame(() => {
-        const el = document.querySelector(`[data-ts="${ts}"]`);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+// Smooth height change for a unit: measure, apply the change, glide between the two.
+function animateUnitHeight(card, mutate, opening) {
+    const from = card.getBoundingClientRect().height;
+    mutate();
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || !card.animate) return;
+    const to = card.getBoundingClientRect().height;
+    if (Math.abs(to - from) < 2) return;
+    if (card._heightAnim) card._heightAnim.cancel();
+    card.style.overflow = 'clip';
+    const anim = card.animate([{ height: from + 'px' }, { height: to + 'px' }],
+        { duration: opening ? 380 : 300, easing: 'cubic-bezier(0.22, 0.8, 0.28, 1)' });
+    card._heightAnim = anim;
+    const done = () => { if (card._heightAnim === anim) { card.style.overflow = ''; card._heightAnim = null; } };
+    anim.onfinish = done;
+    anim.oncancel = done;
+    if (opening) {
+        card.querySelectorAll(':scope > .mix-program, :scope > .tracks').forEach(el =>
+            el.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }],
+                { duration: 340, delay: 60, easing: 'ease-out', fill: 'backwards' }));
+    }
+}
+
+// ── BPM/key analysis for what's on screen (runs only while the set is on) ──
+function analyzeMixCard(card, tracks) {
+    if (typeof dspQueue === 'undefined' || (typeof isPowered === 'function' && !isPowered())) return;
+    if (!tracks) {
+        const mix = getHistory().find(m => String(m._timestamp) === card.dataset.ts);
+        tracks = mix && mix.tracks;
+    }
+    if (Array.isArray(tracks) && tracks.length) dspQueue.startPlaylist(card.dataset.ts, tracks, false);
+}
+function analyzeRenderedMixes() {
+    document.querySelectorAll('#mixes-container [data-ts]').forEach(card => {
+        if (card.classList.contains('mix-card-compact') && !card.classList.contains('is-expanded')) return;
+        analyzeMixCard(card);
     });
 }
 
@@ -27,6 +70,8 @@ function setFilter(mode) {
 // ── View (View switch: up = full, down = compact) ──
 function setView(mode) {
     currentView = mode === 'compact' ? 'compact' : 'normal';
+    expandedCompact.clear();
+    try { localStorage.setItem(STORAGE_KEYS.view, currentView); } catch (e) { /* private mode */ }
     const sw = document.getElementById('view-toggle');
     if (sw) sw.checked = currentView === 'compact';
     rebuildFeed();
@@ -412,6 +457,7 @@ function buildTrackHTML(track, index, ts, allTracks = []) {
                 <button type="button" class="key key-prune" onclick="event.stopPropagation();removeTrackFromMix('${tsJ}', ${index}, this)" title="Remove track from program" aria-label="Remove ${trackH}"><i class="fas fa-xmark" aria-hidden="true"></i></button>
                 <button type="button" class="key stash-star-btn${stashCls}" onclick="${stashClick}" ${stashAttrs} title="${starTitle}" aria-label="${starTitle}"><i class="fas fa-star" aria-hidden="true"></i></button>
             </span>
+            <button type="button" class="key track-more" onclick="event.stopPropagation();toggleTrackTray(this)" aria-expanded="false" aria-label="More actions for ${trackH}"><i class="fas fa-chevron-down" aria-hidden="true"></i></button>
         </span>
         <div class="track-tray">
             <div class="fn"><span class="fn-legend">YouTube</span><a class="cap cap-sm key-youtube" href="${yt}" onclick="${linkClick('YouTube')}" target="_blank" rel="noopener noreferrer" aria-label="Search ${trackH} on YouTube"><i class="fab fa-youtube" aria-hidden="true"></i></a></div>
@@ -451,8 +497,10 @@ function handleMixCardClick(event, ts) {
         if (typeof toggleMergeSelect === 'function') toggleMergeSelect(ts);
         return;
     }
-    if (currentView === 'compact' && !(event.target.closest && event.target.closest('button, a, input'))) {
-        expandAndScrollTo(ts);
+    // compact: the card head opens / closes that one card
+    const t = event.target;
+    if (currentView === 'compact' && t.closest && t.closest('.mix-head') && !t.closest('button, a, input')) {
+        toggleCompactCard(ts);
     }
 }
 
@@ -474,6 +522,7 @@ function renderNewMix(data, persist = false) {
 
     const isFav      = !!data._favorite;
     const isCompact  = currentView === 'compact';
+    const isExpanded = isCompact && expandedCompact.has(ts);
     const tsJ        = escapeJsAttr(ts);
     const tsH        = escapeHtml(ts);
 
@@ -490,10 +539,10 @@ function renderNewMix(data, persist = false) {
     const notes      = data.description ? `<span class="engraved engraved-sm">Notes</span><p class="selectable">${escapeHtml(data.description)}</p>` : '';
 
     const mixHTML = `
-        <article class="unit mix-unit${isCompact ? ' mix-card-compact' : ''}" data-ts="${tsH}" onclick="handleMixCardClick(event, '${tsJ}')">
+        <article class="unit mix-unit${isCompact ? ' mix-card-compact' : ''}${isExpanded ? ' is-expanded' : ''}" data-ts="${tsH}" onclick="handleMixCardClick(event, '${tsJ}')">
             <div class="mix-head">
                 <button type="button" class="mix-fav" onclick="event.stopPropagation();toggleFavorite(this, '${tsJ}')" title="${favoriteTitle(isFav)}" aria-label="Favourite" aria-pressed="${isFav}"><span class="lamp-bezel"><span class="lamp lamp-yellow${isFav ? ' is-on' : ''}"></span></span></button>
-                <div class="mix-title-block"${isCompact ? ' title="Click to expand"' : ''}>
+                <div class="mix-title-block"${isCompact ? ' title="Click to open or close"' : ''}>
                     <h3 class="mix-title selectable" title="${escapeHtml(data.title || '')}">${escapeHtml(data.title || 'Untitled program')}</h3>
                     <div class="mix-meta">
                         ${dateStr ? `<span class="readout">${dateStr}</span>` : ''}
@@ -543,9 +592,7 @@ function renderNewMix(data, persist = false) {
                 if (typeof observeTrackRow === 'function') observeTrackRow(r);
             });
         }
-        if (!isCompact && typeof dspQueue !== 'undefined' && tracks.length > 0) {
-            dspQueue.startPlaylist(ts, tracks, false);
-        }
+        if ((!isCompact || isExpanded) && card.isConnected) analyzeMixCard(card, tracks);
     }, 40);
 
     if (persist) {
@@ -557,9 +604,23 @@ function renderNewMix(data, persist = false) {
     }
 }
 
+// ── Phone action tray: the fold-out key at the end of the row ──
+function toggleTrackTray(btn) {
+    const row = btn.closest('.track-row');
+    if (!row) return;
+    const open = !row.classList.contains('is-open');
+    document.querySelectorAll('.track-row.is-open').forEach(r => {
+        r.classList.remove('is-open');
+        const k = r.querySelector('.track-more');
+        if (k) k.setAttribute('aria-expanded', 'false');
+    });
+    row.classList.toggle('is-open', open);
+    btn.setAttribute('aria-expanded', String(open));
+}
+
 // ── Row clicks (delegated) ──
-// In selection mode a row click toggles that track. Otherwise, on desktop a click on
-// the title copies "Artist - Title"; on phone a tap opens the row's action tray.
+// In selection mode a row click toggles that track. Otherwise a click / tap on the
+// title copies "Artist - Title" (phone opens the tray from the row's fold-out key).
 document.addEventListener('click', (e) => {
     const target = e.target;
     if (!target || !target.closest) return;
@@ -573,13 +634,6 @@ document.addEventListener('click', (e) => {
     const index = parseInt(row.dataset.index, 10);
     if (ts && !isNaN(index) && isPlaylistSelecting(ts)) {
         handleTrackNumClick(ts, index);
-        return;
-    }
-
-    if (window.matchMedia && window.matchMedia(FEED_PHONE_QUERY).matches) {
-        const open = !row.classList.contains('is-open');
-        document.querySelectorAll('.track-row.is-open').forEach(r => r.classList.remove('is-open'));
-        row.classList.toggle('is-open', open);
         return;
     }
 

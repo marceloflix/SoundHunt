@@ -342,7 +342,7 @@ function promptSimilarTrackCount(artist, title, btn) {
 // ── Execute Dig Deeper: Append Similar Tracks to Existing Playlist ──
 async function executeDigDeeper() {
     if (typeof isPowered === 'function' && !isPowered()) { if (typeof nudgePower === 'function') nudgePower(); return; }
-    const { ts, artist, title, count } = _digDeeperTarget;
+    const { ts, index: seedIndex, artist, title, count } = _digDeeperTarget;
     const apiKey = getApiKey();
     if (!apiKey) {
         closeDigDeeperModal();
@@ -485,12 +485,23 @@ Output:
         }
 
         if (mix && Array.isArray(mix.tracks)) {
-            const firstNewIndex = mix.tracks.length;
-            mix.tracks.push(...uniqueProcessedTracks);
+            // New tracks go right after the seed (found by name; the row may have moved since
+            // the modal opened). Unknown seed: append.
+            const seedKey = normKey(artist, title);
+            const trackKey = t => typeof t === 'object' && t !== null
+                ? normKey(t.artist || '', t.title || '')
+                : normKey(String(t).includes(' - ') ? String(t).split(' - ')[0] : '', String(t).includes(' - ') ? String(t).split(' - ').slice(1).join(' - ') : String(t));
+            let seedAt = Number.isInteger(seedIndex) && mix.tracks[seedIndex] && trackKey(mix.tracks[seedIndex]) === seedKey
+                ? seedIndex
+                : mix.tracks.findIndex(t => trackKey(t) === seedKey);
+            const firstNewIndex = seedAt >= 0 ? seedAt + 1 : mix.tracks.length;
+            mix.tracks.splice(firstNewIndex, 0, ...uniqueProcessedTracks);
             saveHistory(history);
+            // row indices shift below the seed: a half-made selection on this card no longer applies
+            if (typeof exitSelectionMode === 'function' && typeof isPlaylistSelecting === 'function' && isPlaylistSelecting(ts)) exitSelectionMode(ts);
             rebuildFeed();
 
-            // Automatically queue sequential BPM/Key analysis for only the newly appended tracks
+            // Automatically queue sequential BPM/Key analysis for only the newly added tracks
             if (typeof dspQueue !== 'undefined') {
                 uniqueProcessedTracks.forEach((t, i) => {
                     dspQueue.enqueue({

@@ -233,12 +233,14 @@ body.merge-active .mix-unit { cursor: pointer; }
 .selection-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
 /* Compact view: head only; click to expand */
-.mix-unit.mix-card-compact { padding-top: 10px; padding-bottom: 10px; cursor: pointer; }
-.mix-card-compact :is(.mix-program, .selection-bar-wrapper, .tracks, .mix-analyze, .mix-select) { display: none; }
-.mix-card-compact .mix-title { font-size: 1.1rem; }
-.mix-card-compact .mix-head-right .bracket { display: none; }
-.mix-card-compact .mix-head-right > .fn { margin-top: 0; }
-.mix-card-compact .mix-head-right { align-items: center; }
+/* Compact view: head only; the head opens / closes that one card (.is-expanded) */
+.mix-card-compact .mix-head { cursor: pointer; }
+.mix-unit.mix-card-compact:not(.is-expanded) { padding-top: 10px; padding-bottom: 10px; }
+.mix-card-compact:not(.is-expanded) :is(.mix-program, .selection-bar-wrapper, .tracks, .mix-analyze, .mix-select) { display: none; }
+.mix-card-compact:not(.is-expanded) .mix-title { font-size: 1.1rem; }
+.mix-card-compact:not(.is-expanded) .mix-head-right .bracket { display: none; }
+.mix-card-compact:not(.is-expanded) .mix-head-right > .fn { margin-top: 0; }
+.mix-card-compact:not(.is-expanded) .mix-head-right { align-items: center; }
 
 /* Empty program log */
 .feed-empty {
@@ -250,8 +252,12 @@ body.merge-active .mix-unit { cursor: pointer; }
 
 .mix-focus { color: var(--label-hi); }
 
-/* Phone action tray */
+/* Phone action tray + its fold-out key (phone only) */
 .track-tray { display: none; }
+.track-more { display: none; }
+.track-more i { transition: transform var(--t-med) ease; }
+.track-row.is-open .track-more { color: var(--amber-hot); }
+.track-row.is-open .track-more i { transform: rotate(180deg); }
 
 /* --------------------------------------------------------------- responsive */
 @media (max-width: 900px) {
@@ -266,8 +272,10 @@ body.merge-active .mix-unit { cursor: pointer; }
     .mix-head-right { grid-column: 1 / -1; justify-content: space-between; }
     .mix-title { font-size: 1.15rem; white-space: normal; }
     .mix-program { grid-template-columns: 1fr; }
-    .track-row { grid-template-columns: 22px 28px minmax(0, 1fr) auto; gap: 7px; padding: 7px 2px; cursor: pointer; }
+    .track-row { grid-template-columns: 22px 28px minmax(0, 1fr) auto; gap: 7px; padding: 7px 2px; }
     .track-actions { display: none; }
+    .track-more { display: grid; }
+    .mix-unit.is-selecting .track-more { visibility: hidden; }
     .track-row .track-tray {
         grid-column: 1 / -1;
         display: none;

@@ -597,6 +597,18 @@ async function analyzeTrackAudio(trackStr, previewUrl = null) {
     }
 }
 
+// The row showing this track: the one at its queued index if it still holds that track,
+// otherwise wherever the track moved to in the same card.
+function findTrackRow(ts, index, track) {
+    const want = typeof getTrackString === 'function' ? getTrackString(track) : null;
+    const holds = r => !!r && (!want || (r.querySelector('.track-text') || {}).dataset?.track === want);
+    const row = document.getElementById(`track-${ts}-${index}`);
+    if (holds(row)) return row;
+    if (!want) return null;
+    const card = document.querySelector(`#mixes-container [data-ts="${CSS.escape(String(ts))}"]`);
+    return card ? [...card.querySelectorAll('.track-row')].find(holds) || null : null;
+}
+
 // ── Background Concurrent Analysis Queue (2-Worker Concurrency Pool) ──
 class ConcurrentDspQueue {
     constructor(maxWorkers = 2) {
@@ -642,7 +654,7 @@ class ConcurrentDspQueue {
 
     async processItem(item) {
         const { ts, index, track, forceReanalyze } = item;
-        const rowEl = document.getElementById(`track-${ts}-${index}`);
+        let rowEl = findTrackRow(ts, index, track);
         const trackStr = typeof track === 'object' && track !== null ? `${track.artist || ''} - ${track.title || ''}` : String(track);
 
         // Check if already cached (unless forced)
@@ -653,6 +665,8 @@ class ConcurrentDspQueue {
             analysis = await analyzeTrackAudio(trackStr, track && track.previewUrl ? track.previewUrl : null);
         }
 
+        // Look the row up again: tracks may have been added or removed while this ran.
+        rowEl = findTrackRow(ts, index, track);
         if (rowEl) {
             renderTrackBadgeResult(rowEl, analysis);
             evaluateTrackRowLayout(rowEl);

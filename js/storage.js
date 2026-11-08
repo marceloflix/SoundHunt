@@ -32,6 +32,7 @@ const STORAGE_KEYS = {
     history:    'megamix_history',
     prompts:    'megamix_prompts',
     textSize:   'megamix_text_size',
+    view:       'megamix_view',
     autoScroll: 'megamix_auto_scroll',
     promptPersona: 'megamix_prompt_persona',
     promptConstraints: 'megamix_prompt_constraints',

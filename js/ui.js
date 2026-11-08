@@ -26,17 +26,25 @@ function setPower(on, opts = {}) {
     led.classList.toggle('lamp-red', !on);
     led.classList.toggle('lamp-green', on);
     document.getElementById('ai-vibe').disabled = !on;
+    const seek = document.getElementById('history-search');
+    if (seek) seek.disabled = !on;
     try { sessionStorage.setItem(POWER_SESSION_KEY, on ? '1' : '0'); } catch (e) { /* private mode */ }
 
     const meters = Array.from(document.querySelectorAll('.glass-meters .meter'));
     if (!on) {
         releasePresets();
+        document.querySelectorAll('.track-row.is-open').forEach(r => r.classList.remove('is-open'));
+        // everything that runs on the set's power closes; the rear panel stays reachable
+        ['closeStashDrawer', 'closeDigDeeperModal', 'closeExternalLinkModal', 'closeStats'].forEach(fn => {
+            if (typeof window[fn] === 'function') window[fn]();
+        });
         closeAudioPlayer();
         document.getElementById('prompt-history-dropdown').classList.add('hidden');
         setDialMessage('');
         SHControls.power(false, { meters });
         return;
     }
+    if (typeof analyzeRenderedMixes === 'function') analyzeRenderedMixes();
     if (opts.instant) {
         document.body.classList.remove('is-off');
         refreshDialIdle();
@@ -72,6 +80,40 @@ function nudgePower() {
     led.classList.add('is-blink');
     clearTimeout(nudgePower._t);
     nudgePower._t = setTimeout(() => led.classList.remove('is-blink'), 1800);
+}
+
+// While off, the faceplate is dead: every control except POWER, REAR (you plug the
+// antenna in with the set off) and INSTALL just blinks the standby lamp. Capture-phase,
+// so it runs before any inline onclick or control handler.
+const POWER_FREE = '#power-btn, [data-power-free], .modal-overlay, #scroll-top';
+const POWER_TURNABLE = '.knob, .flywheel';
+function powerBlockedTarget(target) {
+    if (_powered || !target || !target.closest) return null;
+    const ctl = target.closest('button, a, input, select, textarea, label, .knob, .flywheel, .track-row, .mix-unit');
+    if (!ctl || ctl.closest(POWER_FREE)) return null;
+    return ctl;
+}
+function initPowerGate() {
+    const stop = (e, nudge) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (nudge) nudgePower();
+    };
+    document.addEventListener('click', e => { if (powerBlockedTarget(e.target)) stop(e, true); }, true);
+    // knobs and the flywheel turn on drag / wheel / arrow keys, not just clicks
+    document.addEventListener('pointerdown', e => {
+        const ctl = powerBlockedTarget(e.target);
+        if (ctl && ctl.closest(POWER_TURNABLE)) stop(e, false);
+    }, true);
+    document.addEventListener('wheel', e => {
+        const ctl = powerBlockedTarget(e.target);
+        if (ctl && ctl.closest(POWER_TURNABLE)) stop(e, true);
+    }, { capture: true, passive: false });
+    document.addEventListener('keydown', e => {
+        if (!/^(Arrow|Home$|End$|Page)/.test(e.key)) return;
+        const ctl = powerBlockedTarget(e.target);
+        if (ctl && ctl.closest(POWER_TURNABLE)) stop(e, true);
+    }, true);
 }
 
 // ── Scroll-to-Top ──
@@ -112,6 +154,7 @@ function initReceiver() {
     });
 
     document.getElementById('power-btn').addEventListener('click', () => setPower(!isPowered()));
+    initPowerGate();
 }
 
 // ── App Initialisation ──

@@ -84,11 +84,11 @@
                         </div>
                         <div class="fn">
                             <span class="fn-legend">Rear</span>
-                            <button type="button" class="cap" onclick="openSettings()" aria-label="Settings"><i class="fas fa-sliders"></i></button>
+                            <button type="button" class="cap" data-power-free onclick="openSettings()" aria-label="Settings"><i class="fas fa-sliders"></i></button>
                         </div>
                         <div class="fn hidden" id="pwa-install-btn">
                             <span class="fn-legend">Install</span>
-                            <button type="button" class="cap" onclick="triggerPwaInstall()" aria-label="Install app"><i class="fas fa-download"></i></button>
+                            <button type="button" class="cap" data-power-free onclick="triggerPwaInstall()" aria-label="Install app"><i class="fas fa-download"></i></button>
                         </div>
                     </nav>
                 </header>
@@ -197,7 +197,7 @@
             </div>
             <div class="strip-group strip-seek">
                 <span class="engraved engraved-sm">Seek · search your programs</span>
-                <input class="field" type="search" id="history-search" placeholder="track, artist, genre…" oninput="filterHistory()">
+                <input class="field" type="search" id="history-search" placeholder="track, artist, genre…" oninput="filterHistory()" disabled>
             </div>
             <div class="strip-end">
                 <div class="strip-group strip-dub">
