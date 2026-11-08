@@ -322,7 +322,7 @@ async function previewTrack(trackName, btn) {
         } catch (jsonpErr) {
             console.warn('JSONP search failed, trying direct fetch:', jsonpErr);
             const resp = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(trackName)}&limit=1&media=music`);
-            data = await resp.json();
+            data = resp.ok ? await resp.json() : null;
         }
         if (token !== deckLoadToken) return;
 

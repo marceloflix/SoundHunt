@@ -283,6 +283,7 @@ let _digDeeperTarget = {
 };
 
 function openDigDeeperModal(ts, index, artist, title) {
+    if (typeof isPowered === 'function' && !isPowered()) { if (typeof nudgePower === 'function') nudgePower(); return; }
     _digDeeperTarget = {
         ts,
         index,
@@ -340,6 +341,7 @@ function promptSimilarTrackCount(artist, title, btn) {
 
 // ── Execute Dig Deeper: Append Similar Tracks to Existing Playlist ──
 async function executeDigDeeper() {
+    if (typeof isPowered === 'function' && !isPowered()) { if (typeof nudgePower === 'function') nudgePower(); return; }
     const { ts, artist, title, count } = _digDeeperTarget;
     const apiKey = getApiKey();
     if (!apiKey) {

@@ -780,6 +780,7 @@ function observeAllTrackRows() {}
 
 // ── Global Interface Functions ──
 function triggerPlaylistAnalysis(ts, btn, force = false) {
+    if (typeof isPowered === 'function' && !isPowered()) { if (typeof nudgePower === 'function') nudgePower(); return; }
     const history = typeof getHistory === 'function' ? getHistory() : [];
     const mix = history.find(m => String(m._timestamp) === String(ts));
     

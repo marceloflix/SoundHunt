@@ -378,7 +378,7 @@
                     <div class="fn"><span class="fn-legend">+3</span><button type="button" class="cap dig-count-btn" data-count="3" onclick="setDigDeeperCount(3)" aria-label="Add 3"><span class="cap-num">3</span></button></div>
                     <div class="fn"><span class="fn-legend">+5</span><button type="button" class="cap dig-count-btn" data-count="5" onclick="setDigDeeperCount(5)" aria-label="Add 5"><span class="cap-num">5</span></button></div>
                     <div class="fn"><span class="fn-legend">+10</span><button type="button" class="cap dig-count-btn" data-count="10" onclick="setDigDeeperCount(10)" aria-label="Add 10"><span class="cap-num">10</span></button></div>
-                    <div class="fn"><span class="fn-legend">Custom</span><input type="number" class="field field-num" id="dig-deeper-custom-count" min="1" max="25" value="5" oninput="onDigCustomCountChange(this.value)" aria-label="Custom count"></div>
+                    <div class="fn"><span class="fn-legend">Custom</span><input type="number" class="field field-num" id="dig-deeper-custom-count" min="1" max="25" value="5" oninput="onDigCustomCountChange(this.value)" onchange="setDigDeeperCount(this.value)" aria-label="Custom count"></div>
                 </div>
                 <p class="rear-help">SoundHunt digs for genuine songs that share this track's groove, tempo, era and energy, and adds them to this program.</p>
             </div>

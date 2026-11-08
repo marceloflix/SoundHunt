@@ -243,6 +243,8 @@ function clearApplicationData(btn) {
     // 6. Reset Prompt History dropdown
     const promptDropdown = document.getElementById('prompt-history-dropdown');
     if (promptDropdown) promptDropdown.innerHTML = '';
+    if (typeof releasePresets === 'function') releasePresets();
+    if (typeof renderPresets === 'function') renderPresets();
 
     // 7. Close the cover again and confirm (inline status + toast)
     if (guard) guard.classList.remove('is-open');

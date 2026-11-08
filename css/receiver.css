@@ -525,6 +525,9 @@
     .hunt-btn { width: 196px; height: 98px; }
     .hunt-lens { font-size: 0.7rem; }
     .preset-bank { gap: 10px; }
+    /* logo + keys no longer fit on one line: keys drop to their own full-width row */
+    .rx-top { flex-wrap: wrap; row-gap: 14px; }
+    .rx-panel { width: 100%; justify-content: space-between; margin-left: 0; }
 }
 
 @media (max-width: 640px) {
@@ -536,6 +539,9 @@
     .rx-panel { width: 100%; justify-content: space-between; gap: 4px; margin-left: 0; }
     .rx-panel .fn { min-width: 0; }
     .rx-panel .cap { --w: 50px; }
+    /* px, not rem: the six header legends must fit the plate at every TEXT SIZE setting
+       (7.8px = 0.52rem at the default 15px root) */
+    .rx-panel .fn-legend { font-size: 7.8px; }
 
     .rx-grid { --colA: auto; grid-template-columns: auto minmax(0, 1fr); gap: 12px 10px; }
     .glass-band { grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 8px; }
@@ -591,4 +597,18 @@
     }
     .preset-bank::-webkit-scrollbar { display: none; }
     .preset { width: 112px; flex: none; scroll-snap-align: start; }
+}
+
+/* very narrow phones (360px Android and below): six keys + legends must fit the plate */
+@media (max-width: 380px) {
+    .rx-panel { gap: 2px; }
+    .rx-panel .cap { --w: 42px; }
+    .rx-panel .fn-legend { font-size: 6.9px; letter-spacing: 0.08em; }
+}
+@media (max-width: 340px) {
+    .rx-panel .cap { --w: 38px; }
+    .rx-panel .fn-legend { font-size: 6.3px; letter-spacing: 0.04em; }
+    /* TUNING · DEPTH may wrap rather than push the page sideways (large text) */
+    .fw-center .engraved { white-space: normal; text-align: center; }
+    .fw-side { font-size: 6.3px; }
 }

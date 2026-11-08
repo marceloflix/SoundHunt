@@ -162,10 +162,11 @@
             if (!silent && onChange) onChange(values[i]);
         }
 
-        function step(dir) {
+        // wrap=true for a tap (cycles round); arrow keys and wheel stop at the end stops
+        function step(dir, wrapAround = false) {
             const i = values.indexOf(wrap.dataset.value);
-            const next = (i + dir + values.length) % values.length;
-            set(values[next]);
+            const next = wrapAround ? (i + dir + values.length) % values.length : Math.max(0, Math.min(values.length - 1, i + dir));
+            if (next !== i) set(values[next]);
         }
 
         // Printed dot ring: a large dot per detent, two small dots between.
@@ -206,7 +207,7 @@
             knob.addEventListener('pointerup', up, { once: true });
             knob.addEventListener('pointercancel', up, { once: true });
         });
-        knob.addEventListener('click', () => { if (!dragged) step(1); });
+        knob.addEventListener('click', () => { if (!dragged) step(1, true); });
         knob.addEventListener('keydown', e => {
             if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); step(1); }
             if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); step(-1); }
