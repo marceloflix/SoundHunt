@@ -26,13 +26,13 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- SH design kit -->
-    <link rel="stylesheet" href="css/tokens.css?v=0.5.0">
-    <link rel="stylesheet" href="css/base.css?v=0.5.0">
-    <link rel="stylesheet" href="css/controls.css?v=0.5.0">
-    <link rel="stylesheet" href="css/receiver.css?v=0.5.0">
-    <link rel="stylesheet" href="css/feed.css?v=0.5.0">
-    <link rel="stylesheet" href="css/transport.css?v=0.5.0">
-    <link rel="stylesheet" href="css/panels.css?v=0.5.0">
+    <link rel="stylesheet" href="css/tokens.css?v=0.5.1">
+    <link rel="stylesheet" href="css/base.css?v=0.5.1">
+    <link rel="stylesheet" href="css/controls.css?v=0.5.1">
+    <link rel="stylesheet" href="css/receiver.css?v=0.5.1">
+    <link rel="stylesheet" href="css/feed.css?v=0.5.1">
+    <link rel="stylesheet" href="css/transport.css?v=0.5.1">
+    <link rel="stylesheet" href="css/panels.css?v=0.5.1">
 </head>
 
 <body class="text-size-small is-off">
@@ -277,7 +277,7 @@
                         <input class="field" type="password" id="api-key-input" placeholder="paste your API key…" autocomplete="off" aria-label="Gemini API key">
                     </div>
                     <div id="api-key-status" class="key-status hidden"></div>
-                    <p class="rear-help">Model <span class="readout">gemini-3.5-flash-lite</span>. Get a key from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a> — stored in this browser only.</p>
+                    <p class="rear-help">Model <span class="readout" id="model-readout">gemini-3.8-flash</span>, backup <span class="readout" id="model-fallback">gemini-3.5-flash-lite</span>. Get a key from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a> — stored in this browser only.</p>
                 </div>
 
                 <div class="rear-section">
@@ -413,18 +413,18 @@
     <button type="button" id="scroll-top" class="cap cap-sq" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top"><i class="fas fa-chevron-up"></i></button>
 
     <!-- ── JavaScript (classic scripts, load order matters) ── -->
-    <script src="js/controls.js?v=0.5.0"></script>
-    <script src="js/storage.js?v=0.5.0"></script>
-    <script src="js/stash.js?v=0.5.0"></script>
-    <script src="js/settings.js?v=0.5.0"></script>
-    <script src="js/stats.js?v=0.5.0"></script>
-    <script src="js/player.js?v=0.5.0"></script>
-    <script src="js/audio-dsp-engine.js?v=0.5.0"></script>
-    <script src="js/playlist.js?v=0.5.0"></script>
-    <script src="js/merge.js?v=0.5.0"></script>
-    <script src="js/feed.js?v=0.5.0"></script>
-    <script src="js/api.js?v=0.5.0"></script>
-    <script src="js/ui.js?v=0.5.0"></script>
+    <script src="js/controls.js?v=0.5.1"></script>
+    <script src="js/storage.js?v=0.5.1"></script>
+    <script src="js/stash.js?v=0.5.1"></script>
+    <script src="js/settings.js?v=0.5.1"></script>
+    <script src="js/stats.js?v=0.5.1"></script>
+    <script src="js/player.js?v=0.5.1"></script>
+    <script src="js/audio-dsp-engine.js?v=0.5.1"></script>
+    <script src="js/playlist.js?v=0.5.1"></script>
+    <script src="js/merge.js?v=0.5.1"></script>
+    <script src="js/feed.js?v=0.5.1"></script>
+    <script src="js/api.js?v=0.5.1"></script>
+    <script src="js/ui.js?v=0.5.1"></script>
 
 </body>
 </html>

@@ -34,6 +34,9 @@ function setSaveBtnIcon(btn, icon, spin) {
 
 function openSettings() {
     const key = getApiKey();
+    const [primary, backup] = GEMINI_MODELS;
+    document.getElementById('model-readout').textContent = primary;
+    document.getElementById('model-fallback').textContent = backup || '—';
     document.getElementById('api-key-input').value = key;
     setRearStatus(document.getElementById('api-key-status'), null);
     setRearStatus(document.getElementById('clear-data-status'), null);
@@ -112,31 +115,32 @@ async function saveSettings() {
     const constraints = document.getElementById('prompt-constraints-input').value;
     const explicit   = document.getElementById('prompt-explicit-input').value;
 
-    let geminiValid = true;
-
-    // Show validating state immediately
-    if (key) setRearStatus(statusEl, 'warn', '<i class="fas fa-satellite-dish"></i> Checking signal…');
-    else setRearStatus(statusEl, null);
-
+    // Check the key against the model list (independent of which model is in use). Only a
+    // definite "this key is bad" answer rejects it, and even then the key that's already
+    // saved is left alone. Rate limits, outages or no network: save it and say so.
+    const previousKey = getApiKey();
+    let keyRejected = false;
     if (key) {
+        setRearStatus(statusEl, 'warn', '<i class="fas fa-satellite-dish"></i> Checking signal…');
         try {
-            const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}?key=${encodeURIComponent(key)}`);
-            if (r.ok) {
-                setRearStatus(statusEl, 'ok', '<i class="fas fa-check"></i> Signal OK · key valid');
+            await geminiFetch('models?pageSize=1', key);
+            setRearStatus(statusEl, 'ok', '<i class="fas fa-check"></i> Signal OK · key valid');
+        } catch (e) {
+            if (e && e.kind === 'key') {
+                keyRejected = true;
+                setRearStatus(statusEl, 'error', previousKey && previousKey !== key
+                    ? '<i class="fas fa-xmark"></i> Google rejected that key · your previous key is still connected'
+                    : '<i class="fas fa-xmark"></i> No signal · Google rejected this key, check and try again');
             } else {
-                setRearStatus(statusEl, 'error', '<i class="fas fa-xmark"></i> No signal · invalid key, check and try again');
-                geminiValid = false;
+                setRearStatus(statusEl, 'warn', '<i class="fas fa-triangle-exclamation"></i> Couldn’t reach Google to check the key · saved anyway');
             }
-        } catch {
-            setRearStatus(statusEl, 'warn', '<i class="fas fa-triangle-exclamation"></i> Network error · saved anyway');
         }
+    } else {
+        setRearStatus(statusEl, null);
     }
 
-    // If key was invalid: clear the input field and remove from storage immediately
-    if (!geminiValid) {
-        const geminiInput = document.getElementById('api-key-input');
-        if (geminiInput) geminiInput.value = '';
-        localStorage.removeItem(STORAGE_KEYS.apiKey);
+    // Rejected: keep what was typed (so a typo can be fixed) but don't save it
+    if (keyRejected) {
         if (saveBtn) {
             setSaveBtnIcon(saveBtn, 'fa-xmark');
             saveBtnTimer = setTimeout(restoreSaveBtn, 1200);

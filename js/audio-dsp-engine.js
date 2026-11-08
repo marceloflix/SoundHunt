@@ -83,26 +83,50 @@ function initDspCache() {
 }
 initDspCache();
 
+// Map order is oldest → newest (entries are re-inserted on every save), so the newest
+// results are the ones kept. Lookup failures (offline, iTunes rate limit) are remembered
+// for this session only and retried after DSP_ERROR_TTL; "no preview on iTunes" is
+// stored but re-checked after DSP_UNAVAILABLE_TTL.
+const DSP_CACHE_LIMIT = 600;
+const DSP_ERROR_TTL = 10 * 60 * 1000;
+const DSP_UNAVAILABLE_TTL = 7 * 24 * 60 * 60 * 1000;
+
 function saveAnalysisToCache(cacheKey, result) {
     if (!cacheKey) return;
+    inMemoryDspCache.delete(cacheKey);
     inMemoryDspCache.set(cacheKey, result);
+    while (inMemoryDspCache.size > DSP_CACHE_LIMIT * 2) inMemoryDspCache.delete(inMemoryDspCache.keys().next().value);
+    if (result && result.error) return; // session-only
     try {
-        const obj = {};
-        // Keep up to 600 most recent items in persistent storage
-        let count = 0;
-        inMemoryDspCache.forEach((v, k) => {
-            if (count++ < 600) obj[k] = v;
-        });
-        localStorage.setItem(CACHE_STORAGE_KEY, JSON.stringify(obj));
+        const keep = [...inMemoryDspCache].filter(([, v]) => v && !v.error).slice(-DSP_CACHE_LIMIT);
+        localStorage.setItem(CACHE_STORAGE_KEY, JSON.stringify(Object.fromEntries(keep)));
     } catch (e) {
         console.warn('SoundHunt DSP: Cache save quota warning', e);
     }
 }
 
+function isFreshAnalysis(v) {
+    if (!v) return false;
+    const age = Date.now() - (v.timestamp || 0);
+    if (v.error) return age < DSP_ERROR_TTL;
+    if (v.unavailable) return age < DSP_UNAVAILABLE_TTL;
+    return true;
+}
+
 function getCachedAnalysis(trackStr) {
     const key = normalizeTrackToCacheKey(trackStr);
     if (!key) return null;
-    return inMemoryDspCache.get(key) || null;
+    const v = inMemoryDspCache.get(key);
+    return isFreshAnalysis(v) ? v : null;
+}
+
+// Forget failed / "no preview" results for these tracks so they're looked up again.
+function forgetFailedAnalyses(tracks) {
+    (tracks || []).forEach(t => {
+        const key = normalizeTrackToCacheKey(t);
+        const v = key && inMemoryDspCache.get(key);
+        if (v && (v.error || v.unavailable || !v.bpm || !v.camelot)) inMemoryDspCache.delete(key);
+    });
 }
 
 // ── Audio Context Singleton ──
@@ -523,15 +547,13 @@ async function resolveTrackPreviewUrl(trackStr) {
 
     await waitIfRateLimited();
 
+    // null = iTunes answered and has no preview; throws = iTunes couldn't be asked
+    // (offline / rate-limited), which must not be remembered as "no preview".
+    const pick = data => (data && data.results && data.results[0] && data.results[0].previewUrl) || null;
     try {
-        if (typeof searchItunesJSONP === 'function') {
-            const data = await searchItunesJSONP(query);
-            if (data && data.results && data.results.length > 0 && data.results[0].previewUrl) {
-                return data.results[0].previewUrl;
-            }
-        }
+        if (typeof searchItunesJSONP === 'function') return pick(await searchItunesJSONP(query));
     } catch (e) {
-        // Fallback to direct fetch
+        // JSONP blocked or timed out: try a direct fetch
     }
 
     try {
@@ -542,17 +564,13 @@ async function resolveTrackPreviewUrl(trackStr) {
             await waitIfRateLimited();
             resp = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&limit=1&media=music`);
         }
-        if (resp.ok) {
-            const data = await resp.json();
-            if (data && data.results && data.results.length > 0 && data.results[0].previewUrl) {
-                return data.results[0].previewUrl;
-            }
-        }
+        if (resp.ok) return pick(await resp.json());
+        if (resp.status === 429 || resp.status === 403) triggerRateLimitCooldown(15000);
+        throw new Error(`iTunes search HTTP ${resp.status}`);
     } catch (e) {
         console.warn('SoundHunt DSP: Preview search failed for:', query, e);
+        throw e;
     }
-
-    return null;
 }
 
 // ── Core Track Analyzer ──
@@ -563,11 +581,17 @@ async function analyzeTrackAudio(trackStr, previewUrl = null) {
 
     let url = previewUrl;
     if (!url) {
-        url = await resolveTrackPreviewUrl(trackStr);
+        try {
+            url = await resolveTrackPreviewUrl(trackStr);
+        } catch (err) {
+            const errorResult = { bpm: null, camelot: null, color: null, error: err.message || 'lookup failed', timestamp: Date.now() };
+            saveAnalysisToCache(cacheKey, errorResult);
+            return errorResult;
+        }
     }
 
     if (!url) {
-        const nullResult = { bpm: null, camelot: null, color: null, unavailable: true };
+        const nullResult = { bpm: null, camelot: null, color: null, unavailable: true, timestamp: Date.now() };
         saveAnalysisToCache(cacheKey, nullResult);
         return nullResult;
     }
@@ -591,7 +615,7 @@ async function analyzeTrackAudio(trackStr, previewUrl = null) {
         return result;
     } catch (err) {
         console.warn('SoundHunt DSP: Analysis error on track', trackStr, err);
-        const errorResult = { bpm: null, camelot: null, color: null, error: err.message };
+        const errorResult = { bpm: null, camelot: null, color: null, error: err.message, timestamp: Date.now() };
         saveAnalysisToCache(cacheKey, errorResult);
         return errorResult;
     }
@@ -810,5 +834,9 @@ function triggerPlaylistAnalysis(ts, btn, force = false) {
 
     if (!tracks || tracks.length === 0) return;
 
+    // A press always re-tries tracks that came back without BPM/key (offline, rate limit,
+    // no preview); finished analyses are deterministic, so they're reused. `force`
+    // re-runs everything.
+    if (!force) forgetFailedAnalyses(tracks);
     dspQueue.startPlaylist(ts, tracks, force);
 }

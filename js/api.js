@@ -1,21 +1,83 @@
-// ── Gemini API Configuration & Engine ──
-async function fetchWithRetry(url, options, retries = 2) {
-    const delays = [1200, 2500];
-    for (let i = 0; i < retries; i++) {
-        const response = await fetch(url, options);
-        if (response.ok) return await response.json();
-        const body = await response.text();
-        if (response.status === 400 || response.status === 403) throw new Error(`API_KEY_ERROR: ${body}`);
-        if (response.status === 429 || response.status === 503) {
-            if (i < retries - 1) {
-                await new Promise(r => setTimeout(r, delays[i]));
-                continue;
-            }
-            throw new Error(`RATE_LIMIT: ${body}`);
-        }
-        throw new Error(`HTTP ${response.status}: ${body}`);
+// ── Gemini API ──
+// The key travels in the x-goog-api-key header (never in the URL, so it stays out of
+// logs and history). Every failure becomes a GeminiError with a `kind`:
+//   key · rate · unavailable · model · bad-request · blocked · truncated · empty · network
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+
+class GeminiError extends Error {
+    constructor(kind, message, extra = {}) {
+        super(message);
+        this.kind = kind;
+        this.status = extra.status || 0;
+        this.retryAfter = extra.retryAfter || 0; // seconds, from Google's RetryInfo
+        this.model = extra.model || '';
     }
-    throw new Error('MAX_RETRIES');
+}
+
+// google.rpc.RetryInfo → seconds ("23s", "1.5s")
+function geminiRetryDelay(err) {
+    const info = (err.details || []).find(d => d && String(d['@type'] || '').includes('RetryInfo'));
+    const m = info && /^([\d.]+)s$/.exec(String(info.retryDelay || ''));
+    return m ? Math.ceil(parseFloat(m[1])) : 0;
+}
+
+async function geminiFetch(path, apiKey, init = {}) {
+    let resp;
+    try {
+        resp = await fetch(`${GEMINI_BASE}/${path}`, { ...init, headers: { ...(init.headers || {}), 'x-goog-api-key': apiKey } });
+    } catch (e) {
+        throw new GeminiError('network', e.message || 'Network error');
+    }
+    if (resp.ok) return resp.json();
+    let body = null;
+    try { body = await resp.json(); } catch (e) { /* not JSON */ }
+    const err = (body && body.error) || {};
+    const reason = (err.details || []).map(d => d && d.reason).find(Boolean) || '';
+    const msg = err.message || `HTTP ${resp.status}`;
+    const s = resp.status;
+    if (s === 400 && (reason === 'API_KEY_INVALID' || /api key/i.test(msg))) throw new GeminiError('key', msg, { status: s });
+    if (s === 401 || s === 403) throw new GeminiError('key', msg, { status: s });
+    if (s === 404) throw new GeminiError('model', msg, { status: s });
+    if (s === 429) throw new GeminiError('rate', msg, { status: s, retryAfter: geminiRetryDelay(err) });
+    if (s >= 500) throw new GeminiError('unavailable', msg, { status: s, retryAfter: geminiRetryDelay(err) });
+    throw new GeminiError('bad-request', msg, { status: s });
+}
+
+// Pull the JSON program out of a generateContent reply, checking why the model stopped.
+function readGeminiJson(data) {
+    if (data.promptFeedback && data.promptFeedback.blockReason) throw new GeminiError('blocked', data.promptFeedback.blockReason);
+    const cand = data.candidates && data.candidates[0];
+    if (!cand) throw new GeminiError('empty', 'No candidates');
+    const finish = cand.finishReason || 'STOP';
+    if (finish === 'MAX_TOKENS') throw new GeminiError('truncated', 'Reply cut off at the token limit');
+    if (finish !== 'STOP' && finish !== 'FINISH_REASON_UNSPECIFIED') throw new GeminiError('blocked', finish);
+    const text = ((cand.content && cand.content.parts) || []).filter(p => !p.thought).map(p => p.text || '').join('');
+    if (!text) throw new GeminiError('empty', 'Empty reply');
+    try { return JSON.parse(text); } catch (e) { throw new GeminiError('empty', 'Reply was not valid JSON'); }
+}
+
+const geminiSleep = ms => new Promise(r => setTimeout(r, ms));
+
+// One model: retry transient trouble (overload / network) twice, waiting as long as
+// Google asks (capped) or 1.5s then 4s. Everything else goes straight back to the caller.
+async function generateOnModel(apiKey, model, payload) {
+    const waits = [1500, 4000];
+    for (let attempt = 0; ; attempt++) {
+        try {
+            const data = await geminiFetch(`models/${model}:generateContent`, apiKey, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            return readGeminiJson(data);
+        } catch (e) {
+            if (!(e instanceof GeminiError)) e = new GeminiError('empty', e.message || String(e));
+            e.model = model;
+            const transient = e.kind === 'unavailable' || e.kind === 'network';
+            if (!transient || attempt >= waits.length) throw e;
+            await geminiSleep(e.retryAfter ? Math.min(e.retryAfter * 1000, 8000) : waits[attempt]);
+        }
+    }
 }
 
 // ── Dial messages: errors, notices and loading text all show on the tuner glass ──
@@ -122,44 +184,62 @@ const GEMINI_RESPONSE_SCHEMA = {
 };
 
 // ── Core API Generator with Minimal Thinking for Maximum Speed ──
+// Primary model, then the fallback (GEMINI_MODELS in storage.js). On each model: a
+// rejected thinking setting is retried without it, and a reply cut off at the token
+// limit is retried once with more room. A bad key or a blocked prompt fails the same on
+// every model, so those stop at once.
 async function executeGeminiGenerate(apiKey, prompt) {
-    const payload = {
+    const basePayload = {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
             responseMimeType: 'application/json',
             responseSchema: GEMINI_RESPONSE_SCHEMA,
-            maxOutputTokens: 2500,
-            thinkingConfig: {
-                thinkingLevel: 'MINIMAL'
-            }
+            maxOutputTokens: 8192,
+            thinkingConfig: { thinkingLevel: 'MINIMAL' }
         }
     };
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-    
-    try {
-        const data = await fetchWithRetry(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!responseText) throw new Error('NO_CONTENT');
-        return JSON.parse(responseText);
-    } catch (err) {
-        // If thinkingConfig is rejected for any reason, safely retry once without it
-        if (err.message && (err.message.includes('thinkingConfig') || err.message.includes('thinkingLevel') || err.message.includes('thinking_config') || err.message.includes('INVALID_ARGUMENT'))) {
-            delete payload.generationConfig.thinkingConfig;
-            const retryData = await fetchWithRetry(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const fallbackText = retryData.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (!fallbackText) throw new Error('NO_CONTENT');
-            return JSON.parse(fallbackText);
+    let lastErr = null;
+    for (const model of GEMINI_MODELS) {
+        let payload = basePayload;
+        for (let pass = 0; pass < 3; pass++) {
+            try {
+                const result = await generateOnModel(apiKey, model, payload);
+                if (model !== GEMINI_MODELS[0]) console.info(`SoundHunt: answered by fallback model ${model} (${lastErr && lastErr.kind} on ${lastErr && lastErr.model})`);
+                return result;
+            } catch (e) {
+                lastErr = e;
+                const gc = payload.generationConfig;
+                if (e.kind === 'bad-request' && gc.thinkingConfig) {
+                    payload = { ...payload, generationConfig: { ...gc, thinkingConfig: undefined } };
+                    continue;
+                }
+                if (e.kind === 'truncated' && gc.maxOutputTokens < 16384) {
+                    payload = { ...payload, generationConfig: { ...gc, maxOutputTokens: 16384 } };
+                    continue;
+                }
+                break;
+            }
         }
-        throw err;
+        if (lastErr.kind === 'key' || lastErr.kind === 'blocked') break;
     }
+    throw lastErr;
+}
+
+// What a failed Gemini call shows on the dial (HUNT and FINE TUNE share it).
+function showGeminiError(err) {
+    const kind = err && err.kind;
+    if (kind === 'rate') {
+        // a long RetryInfo means the day's free quota is gone, not a short burst limit
+        if (err.retryAfter > 300) showError('QUOTA USED UP · TRY AGAIN LATER');
+        else showRateLimitCountdown(err.retryAfter || 20);
+    }
+    else if (kind === 'key') showError('BAD ANTENNA · CHECK YOUR API KEY ON THE REAR PANEL');
+    else if (kind === 'unavailable') showError('GEMINI IS OVERLOADED · TRY AGAIN IN A MOMENT');
+    else if (kind === 'blocked') showError('SIGNAL BLOCKED · TRY A DIFFERENT PROMPT');
+    else if (kind === 'truncated' || kind === 'empty') showError('GARBLED SIGNAL · PLEASE TRY AGAIN');
+    else if (kind === 'model') showError('MODEL OFF AIR · SOUNDHUNT NEEDS AN UPDATE');
+    else if (kind === 'network') showError('NO SIGNAL · CHECK YOUR CONNECTION');
+    else showError('NO SIGNAL · CONNECTION FAILED, PLEASE TRY AGAIN');
 }
 
 // ── Generate Playlist ──
@@ -240,15 +320,8 @@ Output specifications:
         }
     } catch (error) {
         console.error('Gemini API Error:', error);
-        const msg = error.message || '';
         stopLoadingMessages();
-        if (msg.includes('API_KEY_ERROR')) {
-            showError('BAD ANTENNA · CHECK YOUR API KEY ON THE REAR PANEL');
-        } else if (msg.includes('RATE_LIMIT') || msg.includes('QUOTA_EXHAUSTED') || msg.includes('MAX_RETRIES') || msg.includes('429')) {
-            showRateLimitCountdown(20);
-        } else {
-            showError('NO SIGNAL · CONNECTION FAILED, PLEASE TRY AGAIN');
-        }
+        showGeminiError(error);
     } finally {
         _generating = false;
         btn.classList.remove('is-busy');
@@ -536,7 +609,8 @@ Output:
         }
     } catch (err) {
         console.error('Dig deeper error:', err);
-        showError('NO SIGNAL · FINE TUNE FAILED, PLEASE TRY AGAIN');
+        if (err instanceof GeminiError) showGeminiError(err);
+        else showError('NO SIGNAL · FINE TUNE FAILED, PLEASE TRY AGAIN');
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;

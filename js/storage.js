@@ -1,5 +1,8 @@
 // ── Dedicated AI Engine ──
-const GEMINI_MODEL = 'gemini-3.5-flash-lite';
+// Primary model first; the next one takes over when the primary is rate-limited,
+// overloaded, can't answer, or has been retired.
+const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash-lite'];
+const GEMINI_MODEL = GEMINI_MODELS[0];
 
 // ── HTML escaping (everything from Gemini or the user goes through these before innerHTML) ──
 function escapeHtml(value) {
