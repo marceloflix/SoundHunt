@@ -88,10 +88,23 @@ function rebuildFeed() {
     const searchInput = document.getElementById('history-search');
     const searchTerm  = searchInput ? searchInput.value.trim().toLowerCase() : '';
     if (searchTerm) {
+        const hit = (t, m) => [t.title, t.genre, m._prompt, ...(t.tracks || []).map(getTrackString)].filter(Boolean).join(' ').toLowerCase().includes(searchTerm);
+        let switched = false;
         history = history.filter(m => {
-            const haystack = [m.title, m.genre, m._prompt, ...(m.tracks || []).map(getTrackString)].filter(Boolean).join(' ').toLowerCase();
-            return haystack.includes(searchTerm);
+            const takes = typeof listTakes === 'function' ? listTakes(m) : [m];
+            const a = typeof activeTakeIndex === 'function' ? activeTakeIndex(m) : 0;
+            if (hit(takes[a], m)) return true;
+            const i = takes.findIndex(t => hit(t, m));
+            if (i < 0) return false;
+            loadTake(m, i); // show the take that matches
+            switched = true;
+            return true;
         });
+        if (switched) {
+            const all = getHistory();
+            history.forEach(m => { const k = all.findIndex(x => x._timestamp === m._timestamp); if (k >= 0) all[k] = m; });
+            saveHistory(all);
+        }
     }
 
     history.slice().reverse().forEach(mix => renderNewMix(mix, false));
@@ -422,7 +435,7 @@ function buildTrackHTML(track, index, ts, allTracks = []) {
     return `<li id="track-${escapeHtml(ts)}-${index}" class="${rowCls}" data-index="${index}" data-dug="${isDug ? 'true' : 'false'}">
         <button type="button" class="${num.className}" onclick="event.stopPropagation();handleTrackNumClick('${tsJ}', ${index})" title="${num.title}" aria-pressed="${num.pressed}">${num.html}</button>
         <button type="button" class="track-play" onclick="event.stopPropagation();previewTrack('${trackJ}',this)" title="Preview 30s" aria-label="Preview ${trackH}"><i class="fas fa-play" aria-hidden="true"></i></button>
-        <span class="track-text track-title-wrapper selectable" data-track="${trackH}" title="Click to copy: ${trackH}">
+        <span class="track-text track-title-wrapper" data-track="${trackH}" title="Click to copy: ${trackH}">
             <span class="track-title track-name">${escapeHtml(title || trackStr)}</span>
             ${artist ? `<span class="track-artist">${escapeHtml(artist)}</span>` : ''}
         </span>
@@ -491,10 +504,88 @@ function formatMixDate(d) {
     return `${feedPad2(d.getDate())} ${mon} ${feedPad2(d.getFullYear() % 100)} · ${feedPad2(d.getHours())}:${feedPad2(d.getMinutes())}`;
 }
 
+// ── Take controls (RE-HUNT results inside one card) ──
+function takeControlsHTML(data, tsJ) {
+    const n = typeof getTakeCount === 'function' ? getTakeCount(data) : 1;
+    const canRehunt = typeof canRehuntMix === 'function' && canRehuntMix(data);
+    const rehunt = canRehunt
+        ? `<div class="fn mix-rehunt"><span class="fn-legend">Re-hunt</span><button type="button" class="cap cap-sm btn-rehunt" onclick="event.stopPropagation();rehuntMix('${tsJ}', this)" title="Re-hunt this program at the current depth and TRACKS setting · adds a take to this card" aria-label="Re-hunt: add a take at the current depth"><i class="fas fa-rotate-right"></i></button></div>`
+        : '';
+    if (n === 1) return { rehunt, stepper: '', meta: '' };
+    const a = activeTakeIndex(data) + 1;
+    const label = `Take ${a} of ${n}`;
+    const stepper = `<div class="fn mix-take"><span class="fn-legend">Take</span><span class="take-ctl">
+        <button type="button" class="cap cap-sm take-prev" onclick="event.stopPropagation();stepTake('${tsJ}', -1)" title="Previous take" aria-label="Previous take"><i class="fas fa-caret-left"></i></button>
+        <span class="take-readout readout" role="status" aria-label="${label}">${a}/${n}</span>
+        <button type="button" class="cap cap-sm take-next" onclick="event.stopPropagation();stepTake('${tsJ}', 1)" title="Next take" aria-label="Next take"><i class="fas fa-caret-right"></i></button>
+    </span></div>`;
+    const meta = `<button type="button" class="readout take-step" onclick="event.stopPropagation();stepTake('${tsJ}', 1)" title="${label} · tap for the next take" aria-label="${label}, show the next take">TAKE ${a}/${n} <i class="fas fa-caret-right" aria-hidden="true"></i></button>`;
+    return { rehunt, stepper, meta };
+}
+
+function ejectBarHTML(data, tsJ, tsH) {
+    const n = typeof getTakeCount === 'function' ? getTakeCount(data) : 1;
+    if (n === 1) return '';
+    const a = activeTakeIndex(data) + 1;
+    return `
+        <div class="selection-bar-wrapper eject-bar-wrapper">
+            <div class="selection-bar-inner">
+                <div class="selection-bar eject-bar">
+                    <span class="readout selection-readout">EJECT TAKE ${a} OR ALL ${n}?</span>
+                    <div class="selection-actions">
+                        <div class="fn"><span class="fn-legend">Take ${a}</span><button type="button" class="cap cap-sm cap-danger" onclick="event.stopPropagation();ejectTake('${tsJ}')" title="Eject only take ${a}" aria-label="Eject take ${a} only"><i class="fas fa-eject"></i></button></div>
+                        <div class="fn"><span class="fn-legend">All</span><button type="button" class="cap cap-sm cap-danger" onclick="event.stopPropagation();ejectAllTakes('${tsJ}')" title="Eject the whole program, all ${n} takes" aria-label="Eject the whole program"><i class="fas fa-trash-can"></i></button></div>
+                        <div class="fn"><span class="fn-legend">Cancel</span><button type="button" class="cap cap-sm" onclick="event.stopPropagation();toggleEjectChoice('${tsJ}', false)" title="Keep everything" aria-label="Cancel eject"><i class="fas fa-xmark"></i></button></div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+}
+
 // ── Render a Mix Card ──
 function renderNewMix(data, persist = false) {
     const container  = document.getElementById('mixes-container');
     if (!container) return;
+    const card = buildMixCard(data);
+    const empty = container.querySelector('.feed-empty');
+    if (empty) empty.remove();
+    container.insertBefore(card, container.firstChild);
+    afterMixCardInsert(card, data);
+
+    if (persist) {
+        const history    = getHistory();
+        history.unshift(data);
+        if (history.length > 50) history.length = 50;
+        saveHistory(history);
+    }
+}
+
+// Redraw one card in place from history (a take changed); no entry animation.
+function refreshMixCard(ts) {
+    const old = document.querySelector(`#mixes-container [data-ts="${CSS.escape(ts)}"]`);
+    const mix = getHistory().find(m => String(m._timestamp) === String(ts));
+    if (!old || !mix) { rebuildFeed(); return; }
+    if (isPlaylistSelecting(ts)) delete playlistSelectionState[ts]; // row indices belong to the old take
+    const card = buildMixCard(mix);
+    card.classList.add('is-redrawn');
+    old.replaceWith(card);
+    if (typeof mergeMode !== 'undefined' && mergeMode && typeof applyMergeHighlights === 'function') applyMergeHighlights();
+    const tracks = card.querySelector('.tracks');
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (tracks && tracks.animate && !reduce) tracks.animate([{ opacity: 0.25 }, { opacity: 1 }], { duration: 260, easing: 'ease-out' });
+    afterMixCardInsert(card, mix);
+}
+
+function afterMixCardInsert(card, data) {
+    const ts = card.dataset.ts;
+    if (isPlaylistSelecting(ts)) updateSelectionUI(ts);
+    const open = !card.classList.contains('mix-card-compact') || card.classList.contains('is-expanded');
+    const tracks = Array.isArray(data.tracks) ? data.tracks : [];
+    // Background BPM/key analysis (only while the set is on)
+    setTimeout(() => { if (open && card.isConnected) analyzeMixCard(card, tracks); }, 40);
+}
+
+function buildMixCard(data) {
     const ts         = data._timestamp || new Date().toISOString();
     data._timestamp  = ts;
     const tracks     = Array.isArray(data.tracks) ? data.tracks : [];
@@ -516,6 +607,7 @@ function renderNewMix(data, persist = false) {
     const dateStr    = formatMixDate(new Date(ts));
     const prompt     = data._prompt ? `<span class="engraved engraved-sm">Program</span><p class="readout selectable">“${escapeHtml(data._prompt)}”</p>` : '';
     const notes      = data.description ? `<span class="engraved engraved-sm">Notes</span><p class="selectable">${escapeHtml(data.description)}</p>` : '';
+    const take       = takeControlsHTML(data, tsJ);
 
     const mixHTML = `
         <article class="unit mix-unit${isCompact ? ' mix-card-compact' : ''}${isExpanded ? ' is-expanded' : ''}" data-ts="${tsH}" onclick="handleMixCardClick(event, '${tsJ}')">
@@ -528,6 +620,7 @@ function renderNewMix(data, persist = false) {
                         <span class="engraved engraved-sm mix-genre" title="${escapeHtml(genre)}">${escapeHtml(genre)}</span>
                         ${focusLabel ? `<span class="engraved engraved-sm mix-focus">${focusLabel}</span>` : ''}
                         <span class="readout"><span class="diag-track-count">${feedPad2(tracks.length)}</span> TRK</span>
+                        ${take.meta}
                     </div>
                 </div>
                 <div class="mix-head-right">
@@ -540,11 +633,14 @@ function renderNewMix(data, persist = false) {
                         <div class="mix-buttons">
                             <div class="fn mix-analyze"><span class="fn-legend"><span class="lamp"></span><span class="fn-text">BPM · Key</span></span><button type="button" id="btn-analyze-${tsH}" class="cap cap-sm btn-analyze-playlist" onclick="event.stopPropagation();triggerPlaylistAnalysis('${tsJ}')" title="Analyze BPM and Camelot keys · press again to retry tracks that came back empty" aria-label="Analyze BPM and key"><i class="fas fa-wave-square"></i></button></div>
                             <div class="fn mix-select"><span class="fn-legend">Select</span><button type="button" class="cap cap-sm btn-select-tracks" onclick="event.stopPropagation();toggleSelectionMode('${tsJ}')" title="Select tracks" aria-label="Select tracks" aria-pressed="false"><i class="fas fa-list-check"></i></button></div>
-                            <div class="fn mix-eject"><span class="fn-legend">Eject</span><button type="button" class="cap cap-sm cap-danger" onclick="event.stopPropagation();deleteMix(this, '${tsJ}')" title="Delete this program" aria-label="Eject (delete program)"><i class="fas fa-eject"></i></button></div>
+                            ${take.rehunt}
+                            ${take.stepper}
+                            <div class="fn mix-eject"><span class="fn-legend">Eject</span><button type="button" class="cap cap-sm cap-danger" onclick="event.stopPropagation();ejectPressed(this, '${tsJ}')" title="${take.meta ? 'Eject this take or the whole program' : 'Delete this program'}" aria-label="${take.meta ? 'Eject: choose this take or the whole program' : 'Eject (delete program)'}"${take.meta ? ' aria-expanded="false"' : ''}><i class="fas fa-eject"></i></button></div>
                         </div>
                     </div>
                 </div>
             </div>
+            ${ejectBarHTML(data, tsJ, tsH)}
             ${prompt || notes ? `<div class="mix-program">${prompt}${notes}</div>` : ''}
             ${renderSelectionBarHTML(ts)}
             <div class="tracks">
@@ -555,27 +651,9 @@ function renderNewMix(data, persist = false) {
         </article>
     `;
 
-    const empty = container.querySelector('.feed-empty');
-    if (empty) empty.remove();
-
     const template = document.createElement('template');
     template.innerHTML = mixHTML.trim();
-    const card = template.content.firstElementChild;
-    container.insertBefore(card, container.firstChild);
-    if (isPlaylistSelecting(ts)) updateSelectionUI(ts);
-
-    // Background BPM/key analysis (only while the set is on)
-    setTimeout(() => {
-        if ((!isCompact || isExpanded) && card.isConnected) analyzeMixCard(card, tracks);
-    }, 40);
-
-    if (persist) {
-        const history    = getHistory();
-        data._timestamp  = ts;
-        history.unshift(data);
-        if (history.length > 50) history.length = 50;
-        saveHistory(history);
-    }
+    return template.content.firstElementChild;
 }
 
 // ── Phone action tray: the fold-out key at the end of the row ──

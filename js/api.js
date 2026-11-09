@@ -236,46 +236,29 @@ function showGeminiError(err) {
     else showError('NO SIGNAL · CONNECTION FAILED, PLEASE TRY AGAIN');
 }
 
-// ── Generate Playlist ──
-let _generating = false;
+// ── Prompt builders (HUNT and RE-HUNT share them) ──
+// avoid: "Artist - Title" labels a re-hunt must not repeat (the card's other takes).
+function huntDepthText(chip) {
+    if (chip === 'deep-cuts') return 'CRITICAL DISCOVERY FOCUS: Prioritize underground, rare vinyl B-sides, obscure hidden gems, and lesser-known authentic tracks. Avoid predictable, overplayed commercial radio hits.';
+    if (chip === 'mainstream') return 'DISCOVERY FOCUS: Prioritize celebrated mainstream hits, iconic classics, and timeless crowd-pleasers.';
+    return 'DISCOVERY FOCUS: Provide a balanced blend of famous essentials and exciting, lesser-known hidden gems.';
+}
 
-async function generateMix() {
-    // Like the real thing: nothing works until POWER is on.
-    if (typeof isPowered === 'function' && !isPowered()) { if (typeof nudgePower === 'function') nudgePower(); return; }
-    if (_generating) return; // HUNT is already scanning (also stops Enter from double-firing)
+function avoidListText(avoid) {
+    const list = (avoid || []).filter(Boolean).slice(0, 60);
+    return list.length ? `\nFRESH TAKE: this is a new take on a program you already answered. Do NOT repeat any of these tracks:\n${list.map(t => `  * "${t}"`).join('\n')}\n` : '';
+}
 
-    const apiKey = getApiKey();
-    if (!apiKey) { showError('NO ANTENNA · CONNECT YOUR GEMINI KEY ON THE REAR PANEL'); openSettings(); return; }
-
-    const vibeInput = document.getElementById('ai-vibe');
-    const vibe = vibeInput.value.trim() || 'Retro 2000s Pop';
-    const trackCount = getTrackCount();
-
-    const btn = document.getElementById('generate-btn');
-    _generating = true;
-    btn.classList.add('is-busy');
-    startLoadingMessages();
-    const stopScan = SHControls.scanDial(document.getElementById('dial'), document.querySelectorAll('.glass-meters .meter'));
-    let lockedText = '';
-
+function buildHuntPrompt(vibe, trackCount, chip, avoid = []) {
     const persona = getPromptPersona() || 'an elite music curator and musicologist with encyclopedic knowledge of genres, eras, and discographies';
     const constraints = getPromptConstraints();
     const explicit = getPromptExplicit() === 'clean' ? 'Only choose CLEAN, non-explicit tracks.' : 'Explicit tracks are allowed.';
-    const chip = typeof getActiveDiscoveryChip === 'function' ? getActiveDiscoveryChip() : 'balanced';
-    let popString = '';
-    if (chip === 'deep-cuts') {
-        popString = 'CRITICAL DISCOVERY FOCUS: Prioritize underground, rare vinyl B-sides, obscure hidden gems, and lesser-known authentic tracks. Avoid predictable, overplayed commercial radio hits.';
-    } else if (chip === 'mainstream') {
-        popString = 'DISCOVERY FOCUS: Prioritize celebrated mainstream hits, iconic classics, and timeless crowd-pleasers.';
-    } else {
-        popString = 'DISCOVERY FOCUS: Provide a balanced blend of famous essentials and exciting, lesser-known hidden gems.';
-    }
-
-    const prompt = `You are ${persona}. Discover a cohesive, high-quality, highly authentic ${trackCount}-track selection for vibe or genre: "${vibe}".
+    const popString = huntDepthText(chip);
+    return `You are ${persona}. Discover a cohesive, high-quality, highly authentic ${trackCount}-track selection for vibe or genre: "${vibe}".
 ${constraints}
 ${popString}
 ${explicit}
-
+${avoidListText(avoid)}
 ERA & RELEASE DATE ACCURACY (CRITICAL):
 - If the vibe/prompt mentions or implies a specific decade, era, or year range (e.g., "80s", "90s", "70s", "2000s", "80's 90's", etc.):
   * EVERY selected track MUST have been genuinely originally released or recorded during that exact era.
@@ -298,6 +281,33 @@ CRITICAL ARTIST & SONG ATTRIBUTION (ZERO HALLUCINATIONS):
 Output specifications:
 - Energy: integer 1-5 (1=chill/ambient, 2=relaxed, 3=moderate, 4=energetic, 5=intense/peak).
 - Description: 2 sentences max. Informative and direct on mood, sonic character, era authenticity, and ideal context.`;
+}
+
+// ── Generate Playlist ──
+let _generating = false;
+
+async function generateMix() {
+    // Like the real thing: nothing works until POWER is on.
+    if (typeof isPowered === 'function' && !isPowered()) { if (typeof nudgePower === 'function') nudgePower(); return; }
+    if (_generating) return; // HUNT is already scanning (also stops Enter from double-firing)
+
+    const apiKey = getApiKey();
+    if (!apiKey) { showError('NO ANTENNA · CONNECT YOUR GEMINI KEY ON THE REAR PANEL'); openSettings(); return; }
+
+    const vibeInput = document.getElementById('ai-vibe');
+    const vibe = vibeInput.value.trim();
+    if (!vibe) { showNotice('NO PROGRAM · TYPE A VIBE, MOOD, ERA OR SCENE FIRST', 5000); vibeInput.focus(); return; }
+    const trackCount = getTrackCount();
+
+    const btn = document.getElementById('generate-btn');
+    _generating = true;
+    btn.classList.add('is-busy');
+    startLoadingMessages();
+    const stopScan = SHControls.scanDial(document.getElementById('dial'), document.querySelectorAll('.glass-meters .meter'));
+    let lockedText = '';
+
+    const chip = typeof getActiveDiscoveryChip === 'function' ? getActiveDiscoveryChip() : 'balanced';
+    const prompt = buildHuntPrompt(vibe, trackCount, chip);
 
     try {
         const mixData = await executeGeminiGenerate(apiKey, prompt);
@@ -305,8 +315,8 @@ Output specifications:
         mixData._focus = chip;
         renderNewMix(mixData, true);
         savePrompt(vibe);
-        vibeInput.value = '';
-        releasePresets();
+        // the prompt stays in the box (a latched preset stays latched): change the depth or
+        // TRACKS and HUNT again for a new card
         lockedText = `LOCKED · ${(mixData.tracks || []).length} TRACKS FOUND`;
 
         if (getAutoScroll()) {
@@ -396,6 +406,52 @@ function latchDigCount(count) {
     });
 }
 
+// Track identity for dedupe: "artist:::title", lowercase, no punctuation or (bracketed) bits.
+function normKey(art, tit) {
+    const a = (art || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const t = (tit || '').toLowerCase()
+        .replace(/\s*[\(\[\{].*?[\)\]\}]/g, '')
+        .replace(/[^a-z0-9]/g, '');
+    return `${a}:::${t}`;
+}
+
+// Fine Tune and a seed card's RE-HUNT: tracks like one seed song. forbidden: labels to skip.
+function buildSeedPrompt(artist, title, requestedCandidates, chip, forbiddenTracks) {
+    const songLabel = artist ? `${artist} - ${title}` : title;
+    const forbiddenListText = forbiddenTracks.slice(0, 60).map(t => `  * "${t}"`).join('\n');
+    const explicit = getPromptExplicit() === 'clean' ? 'Only choose CLEAN, non-explicit tracks.' : 'Explicit tracks are allowed.';
+    let depthGuidance = '';
+    if (chip === 'deep-cuts') {
+        depthGuidance = 'CRITICAL: Prioritize obscure gems, rare b-sides, and underground cuts that sound astonishingly close to this groove. Avoid commercial radio tracks.';
+    } else if (chip === 'mainstream') {
+        depthGuidance = 'Prioritize well-known essentials, iconic anthems, and popular songs that share this energy.';
+    } else {
+        depthGuidance = 'Provide a balanced blend of authentic gems, compatible classics, and exciting discoveries.';
+    }
+
+    return `You are an elite crate digger, sonic curator, and record specialist for SoundHunt.
+Discover exactly ${requestedCandidates} tracks that share the authentic sonic DNA, groove, production era, and mood of:
+Seed Track: "${title}"
+Artist: "${artist}"
+
+${explicit}
+${depthGuidance}
+
+STRICT SELECTION CRITERIA:
+- Unearth real, existing songs by genuine artists that sound like they belong in the exact same DJ crate or listening session.
+- ZERO HALLUCINATIONS & FACTUAL ARTIST INTEGRITY: NEVER invent or guess songs or attribute tracks to the wrong artist. Every track MUST be a real, verified song that exists in official discographies (Spotify, Apple Music, Discogs).
+- PRIMARY ARTIST ATTRIBUTION: Always credit the official primary artist (e.g. "George Michael", NOT "Wham!"; "Phil Collins", NOT "Genesis"; "Sting", NOT "The Police").
+- STRICT ERA AUTHENTICITY: If the seed song is from a specific decade (e.g. 80s, 90s, 70s, 2000s), every discovered track MUST be an authentic release from that era. Do NOT suggest modern retro revival tracks.
+
+ABSOLUTE NO-DUPLICATION RULES (CRITICAL):
+- NEVER include or repeat the seed track "${songLabel}" in your recommendations.
+${forbiddenTracks.length > 0 ? `- DO NOT recommend any of the following songs already present in this playlist:\n${forbiddenListText}\n` : ''}- Every track in your response MUST be completely unique and distinct.
+
+Output:
+- Title: "Hunted from: ${songLabel}"
+- Description: 2 short sentences explaining why these songs match this track's groove and vibe.`;
+}
+
 // ── Execute Dig Deeper: Append Similar Tracks to Existing Playlist ──
 async function executeDigDeeper() {
     if (typeof isPowered === 'function' && !isPowered()) { if (typeof nudgePower === 'function') nudgePower(); return; }
@@ -432,43 +488,10 @@ async function executeDigDeeper() {
     }).filter(Boolean);
 
     const forbiddenTracks = [songLabel, ...existingTrackLabels].filter(Boolean);
-    const forbiddenListText = forbiddenTracks.slice(0, 40).map(t => `  * "${t}"`).join('\n');
 
-    const explicit = getPromptExplicit() === 'clean' ? 'Only choose CLEAN, non-explicit tracks.' : 'Explicit tracks are allowed.';
     const chip = getActiveDiscoveryChip();
-    let depthGuidance = '';
-    if (chip === 'deep-cuts') {
-        depthGuidance = 'CRITICAL: Prioritize obscure gems, rare b-sides, and underground cuts that sound astonishingly close to this groove. Avoid commercial radio tracks.';
-    } else if (chip === 'mainstream') {
-        depthGuidance = 'Prioritize well-known essentials, iconic anthems, and popular songs that share this energy.';
-    } else {
-        depthGuidance = 'Provide a balanced blend of authentic gems, compatible classics, and exciting discoveries.';
-    }
-
     // Request extra candidates so deduplication guarantees exact count
-    const requestedCandidates = Math.min(25, count + 3);
-
-    const prompt = `You are an elite crate digger, sonic curator, and record specialist for SoundHunt.
-Discover exactly ${requestedCandidates} tracks that share the authentic sonic DNA, groove, production era, and mood of:
-Seed Track: "${title}"
-Artist: "${artist}"
-
-${explicit}
-${depthGuidance}
-
-STRICT SELECTION CRITERIA:
-- Unearth real, existing songs by genuine artists that sound like they belong in the exact same DJ crate or listening session.
-- ZERO HALLUCINATIONS & FACTUAL ARTIST INTEGRITY: NEVER invent or guess songs or attribute tracks to the wrong artist. Every track MUST be a real, verified song that exists in official discographies (Spotify, Apple Music, Discogs).
-- PRIMARY ARTIST ATTRIBUTION: Always credit the official primary artist (e.g. "George Michael", NOT "Wham!"; "Phil Collins", NOT "Genesis"; "Sting", NOT "The Police").
-- STRICT ERA AUTHENTICITY: If the seed song is from a specific decade (e.g. 80s, 90s, 70s, 2000s), every discovered track MUST be an authentic release from that era. Do NOT suggest modern retro revival tracks.
-
-ABSOLUTE NO-DUPLICATION RULES (CRITICAL):
-- NEVER include or repeat the seed track "${songLabel}" in your recommendations.
-${forbiddenTracks.length > 0 ? `- DO NOT recommend any of the following songs already present in this playlist:\n${forbiddenListText}\n` : ''}- Every track in your response MUST be completely unique and distinct.
-
-Output:
-- Title: "Hunted from: ${songLabel}"
-- Description: 2 short sentences explaining why these songs match this track's groove and vibe.`;
+    const prompt = buildSeedPrompt(artist, title, Math.min(25, count + 3), chip, forbiddenTracks);
 
     try {
         const geminiResult = await executeGeminiGenerate(apiKey, prompt);
@@ -478,15 +501,6 @@ Output:
             showError('NO SIGNAL · NO SIMILAR TRACKS FOUND FOR THIS SONG');
             return;
         }
-
-        // Helper to normalize track identity for strict comparison
-        const normKey = (art, tit) => {
-            const a = (art || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-            const t = (tit || '').toLowerCase()
-                .replace(/\s*[\(\[\{].*?[\)\]\}]/g, '')
-                .replace(/[^a-z0-9]/g, '');
-            return `${a}:::${t}`;
-        };
 
         const seenSongs = new Set();
         // Register seed track as forbidden
@@ -588,6 +602,8 @@ Output:
             // Fallback if mix not in history (e.g. demo card): create as standalone mix
             geminiResult.tracks = uniqueProcessedTracks;
             geminiResult._prompt = `Hunted from: ${artist ? artist + ' - ' : ''}${title}`;
+            geminiResult._seed = { artist: artist || '', title: title || '' };
+            geminiResult._focus = chip;
             renderNewMix(geminiResult, true);
             showNotice(`LOCKED · NEW PROGRAM WITH ${uniqueProcessedTracks.length} TRACKS LIKE ${songLabel}`, 6000);
         }
@@ -600,5 +616,84 @@ Output:
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalHtml;
         }
+    }
+}
+
+// ── RE-HUNT: a new take of a card at the current needle and TRACKS settings ──
+// The take is recorded inside the same card (takes live in playlist.js); the other takes'
+// tracks go to Gemini as a do-not-repeat list so each take brings something new.
+async function rehuntMix(ts, btn) {
+    if (typeof isPowered === 'function' && !isPowered()) { if (typeof nudgePower === 'function') nudgePower(); return; }
+    if (_generating) { showNotice('ALREADY SCANNING · WAIT FOR THIS HUNT TO LOCK', 4000); return; }
+    const mix = getHistory().find(m => String(m._timestamp) === String(ts));
+    if (!mix || !canRehuntMix(mix)) return;
+    if (getTakeCount(mix) >= MAX_TAKES) { showError(`TAKE BANK FULL · ${MAX_TAKES} TAKES · EJECT ONE FIRST`); return; }
+
+    const apiKey = getApiKey();
+    if (!apiKey) { showError('NO ANTENNA · CONNECT YOUR GEMINI KEY ON THE REAR PANEL'); openSettings(); return; }
+
+    const chip = getActiveDiscoveryChip();
+    const trackCount = getTrackCount();
+    const seed = mixSeed(mix);
+    const avoid = allTakeTracks(mix).map(getTrackString).filter(Boolean);
+    const prompt = seed
+        ? buildSeedPrompt(seed.artist, seed.title, Math.min(25, trackCount + 3), chip, [seed.artist ? `${seed.artist} - ${seed.title}` : seed.title, ...avoid])
+        : buildHuntPrompt(mix._prompt, trackCount, chip, avoid);
+
+    const hunt = document.getElementById('generate-btn');
+    _generating = true;
+    if (btn) btn.classList.add('is-busy');
+    if (hunt) hunt.classList.add('is-busy');
+    startLoadingMessages();
+    const stopScan = SHControls.scanDial(document.getElementById('dial'), document.querySelectorAll('.glass-meters .meter'));
+    let lockedText = '';
+
+    try {
+        const result = await executeGeminiGenerate(apiKey, prompt);
+        let tracks = Array.isArray(result.tracks) ? result.tracks : [];
+        if (seed) {
+            // same dedupe as Fine Tune: never the seed, never a track another take already has
+            const seen = new Set([normKey(seed.artist, seed.title), ...allTakeTracks(mix).map(t =>
+                typeof t === 'object' && t ? normKey(t.artist, t.title) : normKey('', String(t)))]);
+            tracks = tracks.filter(t => {
+                const k = normKey(t && t.artist, t && t.title);
+                if (!t || !t.title || seen.has(k)) return false;
+                seen.add(k);
+                return true;
+            }).slice(0, trackCount).map(t => ({ artist: t.artist || '', title: t.title, isDigDeeper: true }));
+        }
+        if (!tracks.length) { showError('GARBLED SIGNAL · NO NEW TRACKS FOUND, PLEASE TRY AGAIN'); return; }
+
+        // the card may have changed while Gemini was answering: work on fresh history
+        const history = getHistory();
+        const target = history.find(m => String(m._timestamp) === String(ts));
+        if (!target) return; // ejected meanwhile
+        const n = addTake(target, {
+            title: result.title || target.title,
+            description: result.description || '',
+            tracks,
+            energy: result.energy,
+            genre: result.genre || target.genre,
+            _focus: chip,
+        });
+        saveHistory(history);
+        refreshMixCard(ts);
+        lockedText = `TAKE ${n} LOCKED · ${tracks.length} TRACKS FOUND`;
+        const card = document.querySelector(`#mixes-container [data-ts="${CSS.escape(ts)}"]`);
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (error) {
+        console.error('Re-hunt error:', error);
+        stopLoadingMessages();
+        showGeminiError(error);
+    } finally {
+        _generating = false;
+        if (btn) btn.classList.remove('is-busy');
+        // the card was redrawn: clear the busy look on whatever cap is there now
+        document.querySelectorAll('.btn-rehunt.is-busy').forEach(b => b.classList.remove('is-busy'));
+        if (hunt) hunt.classList.remove('is-busy');
+        stopLoadingMessages();
+        const zone = DEPTH_ZONES.find(z => z.value === chip) || DEPTH_ZONES[1];
+        stopScan(zone.center);
+        if (lockedText) setDialMessage(lockedText, '', 6000);
     }
 }

@@ -189,7 +189,7 @@ body.merge-active .mix-unit { cursor: pointer; }
 .mix-unit.is-selecting .track-row { cursor: pointer; }
 
 /* Title copy flash (desktop click on title) */
-.track-title-wrapper { position: relative; cursor: copy; }
+.track-title-wrapper { position: relative; cursor: copy; -webkit-touch-callout: none; } /* a click copies; no text selection */
 .track-title-wrapper.is-copied::after {
     content: 'COPIED';
     position: absolute; right: 0; top: 50%;
@@ -236,11 +236,46 @@ body.merge-active .mix-unit { cursor: pointer; }
 /* Compact view: head only; the head opens / closes that one card (.is-expanded) */
 .mix-card-compact .mix-head { cursor: pointer; }
 .mix-unit.mix-card-compact:not(.is-expanded) { padding-top: 10px; padding-bottom: 10px; }
-.mix-card-compact:not(.is-expanded) :is(.mix-program, .selection-bar-wrapper, .tracks, .mix-analyze, .mix-select) { display: none; }
+.mix-card-compact:not(.is-expanded) :is(.mix-program, .selection-bar-wrapper:not(.eject-bar-wrapper), .tracks, .mix-analyze, .mix-select, .mix-rehunt, .mix-take) { display: none; }
 .mix-card-compact:not(.is-expanded) .mix-title { font-size: 1.1rem; }
 .mix-card-compact:not(.is-expanded) .mix-head-right .bracket { display: none; }
 .mix-card-compact:not(.is-expanded) .mix-head-right > .fn { margin-top: 0; }
 .mix-card-compact:not(.is-expanded) .mix-head-right { align-items: center; }
+
+/* Takes: RE-HUNT results inside one card. Desktop steps with ◀ n/N ▶ in Program control;
+   phones (and a closed compact card) get a TAKE n/N readout in the meta line that steps on tap. */
+.mix-unit.is-redrawn { animation: none; }
+.take-ctl { display: inline-flex; align-items: center; gap: 4px; }
+.take-ctl .cap { --w: 26px; }
+.take-readout {
+    min-width: 38px;
+    padding: 3px 5px;
+    border-radius: 2px;
+    background: #070708;
+    box-shadow: var(--well);
+    font-size: 0.8rem;
+    text-align: center;
+    white-space: nowrap;
+}
+.take-step {
+    display: none;
+    align-items: center;
+    gap: 5px;
+    padding: 0 6px;
+    border-radius: 2px;
+    background: #070708;
+    box-shadow: var(--well);
+    font-size: 0.72rem;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+.take-step i { font-size: 0.7rem; }
+.take-step:hover, .take-step:focus-visible { color: var(--amber-hot); }
+.mix-card-compact:not(.is-expanded) .take-step { display: inline-flex; }
+.btn-rehunt.is-busy { pointer-events: none; }
+.btn-rehunt.is-busy i { color: var(--amber-hot); opacity: 1; animation: rehuntSpin 0.9s linear infinite; }
+@keyframes rehuntSpin { to { transform: rotate(360deg); } }
+.eject-bar .selection-readout { color: #e3836f; text-shadow: 0 0 6px rgba(227, 131, 111, 0.45); }
 
 /* Empty program log */
 .feed-empty {
@@ -272,6 +307,14 @@ body.merge-active .mix-unit { cursor: pointer; }
     .mix-head-right { grid-column: 1 / -1; justify-content: space-between; }
     .mix-title { font-size: 1.15rem; white-space: normal; }
     .mix-program { grid-template-columns: 1fr; }
+    .mix-take { display: none; }
+    .take-step { display: inline-flex; }
+    /* Energy + four caps share one row down to 320 at any TEXT SIZE: px legends, tight gaps */
+    .mix-head-right { gap: 14px; }
+    .mix-head-right .group { flex: 1; min-width: 0; }
+    .mix-buttons { gap: 6px; justify-content: space-between; }
+    .mix-head-right .fn { min-width: 44px; }
+    .mix-head-right .fn-legend { font-size: 7.6px; letter-spacing: 0.1em; gap: 4px; }
     .track-row { grid-template-columns: 22px 28px minmax(0, 1fr) auto; gap: 7px; padding: 7px 2px; }
     .track-actions { display: none; }
     .track-more { display: grid; }
@@ -294,6 +337,17 @@ body.merge-active .mix-unit { cursor: pointer; }
 
 /* narrow phones: tray columns are ~45px, so the six legends tighten up */
 @media (max-width: 380px) {
+    .mix-head-right .fn-legend { letter-spacing: 0.04em; }
+    .mix-buttons { gap: 4px; }
     .track-tray { gap: 4px; }
     .track-tray .fn-legend { font-size: 6px; letter-spacing: 0.02em; }
+}
+
+/* 320-class phones: slimmer program caps so Energy + four caps keep one row */
+@media (max-width: 340px) {
+    .mix-head-right { gap: 8px; }
+    .mix-buttons { gap: 2px; }
+    .mix-head-right .fn { min-width: 38px; }
+    .mix-head-right .cap-sm { --w: 38px; }
+    .mix-head-right .fn-legend { font-size: 7.6px; letter-spacing: 0; gap: 3px; }
 }

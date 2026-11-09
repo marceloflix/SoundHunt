@@ -409,8 +409,12 @@
     function typePlaceholder(input, examples) {
         let i = 0, ch = 0, dir = 1, timer;
         const base = '';
+        // Focus wipes the example (even half-typed) so the box is free to type in;
+        // leaving it empty starts the next example from its first letter.
+        input.addEventListener('focus', () => { input.placeholder = ''; });
+        input.addEventListener('blur', () => { if (!input.value) { ch = 0; dir = 1; } });
         function step() {
-            if (document.activeElement === input || input.value) { timer = setTimeout(step, 600); return; }
+            if (document.activeElement === input || input.value) { input.placeholder = ''; timer = setTimeout(step, 600); return; }
             const text = examples[i];
             ch += dir;
             input.placeholder = base + text.slice(0, ch) + (ch % 2 ? '▌' : ' ');
@@ -418,7 +422,10 @@
             if (dir < 0 && ch <= 0) { dir = 1; i = (i + 1) % examples.length; timer = setTimeout(step, 400); return; }
             timer = setTimeout(step, dir > 0 ? 70 + Math.random() * 60 : 22);
         }
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { input.placeholder = examples[0]; return; }
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            input.addEventListener('blur', () => { input.placeholder = examples[0]; });
+            input.placeholder = examples[0]; return;
+        }
         step();
         return () => clearTimeout(timer);
     }

@@ -66,7 +66,8 @@ function executeMerge() {
         energy:      Math.round(selected.reduce((s, m) => s + (parseInt(m.energy) || 3), 0) / selected.length),
         genre:       [...new Set(selected.map(m => m.genre).filter(Boolean))].join(', '),
         _prompt:     'Merged: ' + selected.map(m => m._prompt || m.title).join(' + '),
-        _focus:      'balanced'
+        _focus:      'balanced',
+        _merged:     true
     };
     // Remove source playlists
     history = history.filter(m => !mergeSelection.includes(m._timestamp));
