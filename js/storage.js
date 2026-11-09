@@ -1,7 +1,8 @@
 // ── Dedicated AI Engine ──
-// Primary model first; the next one takes over when the primary is rate-limited,
-// overloaded, can't answer, or has been retired.
-const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash-lite'];
+// The model SoundHunt asks. Any model listed after the first takes over when the one
+// before it is rate-limited, overloaded, can't answer, or retired. Flash-Lite alone:
+// lightest on the free-tier quota (append e.g. 'gemini-3.8-flash' for a backup).
+const GEMINI_MODELS = ['gemini-3.5-flash-lite'];
 
 // ── HTML escaping (everything from Gemini or the user goes through these before innerHTML) ──
 function escapeHtml(value) {

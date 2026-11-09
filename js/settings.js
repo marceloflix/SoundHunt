@@ -36,7 +36,8 @@ function openSettings() {
     const key = getApiKey();
     const [primary, backup] = GEMINI_MODELS;
     document.getElementById('model-readout').textContent = primary;
-    document.getElementById('model-fallback').textContent = backup || '—';
+    document.getElementById('model-fallback').textContent = backup || '';
+    document.getElementById('model-backup').hidden = !backup;
     document.getElementById('api-key-input').value = key;
     setRearStatus(document.getElementById('api-key-status'), null);
     setRearStatus(document.getElementById('clear-data-status'), null);
