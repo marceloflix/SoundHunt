@@ -349,15 +349,19 @@
 
         // The flywheel is the only way to tune: drag horizontally / scroll; knurls move with the hand.
         if (flywheel) {
-            const spin = dx => {
+            // px of travel for the whole dial: a mouse has room, a thumb on a phone doesn't
+            // (touch crosses a zone in ~80px instead of ~230px). Knurls still follow the hand 1:1.
+            const RANGE_MOUSE = 700, RANGE_TOUCH = 240;
+            const spin = (dx, range = RANGE_MOUSE) => {
                 wheelOffset += dx;
                 flywheel.style.setProperty('--fw', wheelOffset + 'px');
-                render(pos + dx / 700, false);
+                render(pos + dx / range, false);
             };
             flywheel.addEventListener('pointerdown', e => {
                 flywheel.setPointerCapture(e.pointerId);
                 let x = e.clientX;
-                const move = ev => { spin(ev.clientX - x); x = ev.clientX; };
+                const range = e.pointerType === 'mouse' ? RANGE_MOUSE : RANGE_TOUCH;
+                const move = ev => { spin(ev.clientX - x, range); x = ev.clientX; };
                 const up = () => { flywheel.removeEventListener('pointermove', move); snap(); };
                 flywheel.addEventListener('pointermove', move);
                 flywheel.addEventListener('pointerup', up, { once: true });

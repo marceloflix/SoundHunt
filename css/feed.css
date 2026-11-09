@@ -17,6 +17,8 @@
 .strip-seek .field { min-height: 32px; font-size: 0.9rem; }
 
 .strip-end { margin-left: auto; display: flex; gap: 14px; align-items: center; }
+/* TAPE DUB hint: its own line under the strip while merge mode is on */
+.dub-hint { flex-basis: 100%; order: 20; margin: 0; font-size: 0.78rem; line-height: 1.4; text-align: right; color: var(--amber-hot); }
 
 /* Merge ("tape dub") mode */
 body.merge-active .mix-unit { cursor: pointer; }
@@ -302,6 +304,7 @@ body.merge-active .mix-unit { cursor: pointer; }
     .strip { gap: 12px 16px; justify-content: space-between; }
     .strip-seek { order: 10; flex-basis: 100%; }
     .strip-end { margin-left: 0; }
+    .dub-hint { text-align: left; }
     body.merge-active .strip-end > .fn:last-child { display: none; } /* RESET */
     .mix-head { grid-template-columns: auto minmax(0, 1fr); }
     .mix-head-right { grid-column: 1 / -1; justify-content: space-between; }
